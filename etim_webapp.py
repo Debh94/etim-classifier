@@ -93,6 +93,7 @@ if st.button("Classifica"):
         st.success("✅ Classi ETIM suggerite:")
         for _, row in top_results.iterrows():
             st.markdown(f"**{row['Code']}** – {row['ETIM IT']}  ")
+            st.markdown(f"🔤 Descrizione (EN): {row['Description (EN)']}")
             st.markdown(f"📈 Confidenza AI: {row['Confidence']}%")
             st.markdown("---")
     else:
