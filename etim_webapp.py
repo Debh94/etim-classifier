@@ -42,13 +42,15 @@ def classify_description(description, df, vectorizer, tfidf_matrix):
     result = df.iloc[idx]
     return result, round(similarity[idx] * 100, 2)
 
-# === OCR with ocr.space ===
+# === OCR with ocr.space using free API key ===
 def ocr_space_image(image_file):
     api_url = 'https://api.ocr.space/parse/image'
+    api_key = 'helloworld'  # chiave pubblica gratuita
     payload = {
         'isOverlayRequired': False,
         'OCREngine': 2,
-        'language': 'ita'
+        'language': 'ita',
+        'apikey': api_key
     }
     files = {'file': image_file}
     response = requests.post(api_url, data=payload, files=files)
