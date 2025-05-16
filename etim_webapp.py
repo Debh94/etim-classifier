@@ -16,7 +16,7 @@ st.write("✅ Librerie disponibili:", installed)
 # === ETIM setup ===
 @st.cache_data
 def load_etim_data():
-    df = pd.read_excel("Classi_9.xlsx")
+    df = pd.read_csv("Classi_9.csv", encoding='utf-8')
 
     required_cols = ['Code', 'Description (EN)', 'ETIM IT',
                      'Translation (ETIM CH)', 'Traduttore Google',
