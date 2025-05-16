@@ -7,6 +7,8 @@ import requests
 from bs4 import BeautifulSoup
 from PIL import Image
 import io
+from transformers import BlipProcessor, BlipForConditionalGeneration
+import torch
 
 # === ETIM setup ===
 @st.cache_data
@@ -42,23 +44,19 @@ def classify_description(description, df, vectorizer, tfidf_matrix):
     result = df.iloc[idx]
     return result, round(similarity[idx] * 100, 2)
 
-# === OCR with ocr.space using free API key ===
-def ocr_space_image(image_file):
-    api_url = 'https://api.ocr.space/parse/image'
-    api_key = 'helloworld'  # chiave pubblica gratuita
-    payload = {
-        'isOverlayRequired': False,
-        'OCREngine': 2,
-        'language': 'ita',
-        'apikey': api_key
-    }
-    files = {'file': image_file}
-    response = requests.post(api_url, data=payload, files=files)
-    try:
-        result = response.json()
-        return result['ParsedResults'][0]['ParsedText']
-    except Exception as e:
-        raise ValueError(f"Errore nel parsing del risultato OCR: {e}\nRisposta completa: {response.text}")
+# === BLIP model setup ===
+@st.cache_resource
+def load_blip_model():
+    processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+    model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
+    return processor, model
+
+def generate_image_caption(image_file, processor, model):
+    image = Image.open(image_file).convert('RGB')
+    inputs = processor(image, return_tensors="pt")
+    out = model.generate(**inputs)
+    caption = processor.decode(out[0], skip_special_tokens=True)
+    return caption
 
 # === Streamlit app ===
 st.set_page_config(page_title="Classificatore ETIM", layout="centered")
@@ -92,17 +90,16 @@ if url_input:
     except Exception as e:
         st.error(f"Errore nel caricamento della pagina: {e}")
 
-# Caricamento immagine + OCR.space
+# Caricamento immagine + descrizione automatica (BLIP)
 image_file = st.file_uploader("📷 Oppure carica una foto dell'articolo (jpg, png):", type=["jpg", "jpeg", "png"])
 if image_file:
     try:
         st.image(image_file, caption="Immagine caricata", use_container_width=True)
-        text_img = ocr_space_image(image_file)
-        if text_img.strip():
-            user_input = text_img
-            st.info("Testo estratto dall'immagine tramite ocr.space.")
-        else:
-            st.warning("❌ Nessun testo rilevato nell'immagine.")
+        with st.spinner("Sto analizzando l'immagine..."):
+            processor, model = load_blip_model()
+            label = generate_image_caption(image_file, processor, model)
+            user_input = label + ". " + user_input
+            st.info(f"🧠 Descrizione generata automaticamente: **{label}**")
     except Exception as e:
         st.error(f"Errore durante l'elaborazione dell'immagine: {e}")
 
