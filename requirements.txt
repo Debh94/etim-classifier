@@ -5,3 +5,5 @@ openpyxl
 PyMuPDF
 beautifulsoup4
 requests
+pytesseract
+Pillow
