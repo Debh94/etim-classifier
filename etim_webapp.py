@@ -33,16 +33,17 @@ def load_etim_data():
 
 @st.cache_resource
 def load_semantic_model():
-    return SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    return SentenceTransformer('sentence-transformers/paraphrase-multilingual-mpnet-base-v2')
 
-def classify_semantic(description, df, model):
+def classify_semantic_top_k(description, df, model, top_k=5):
     corpus = df['combined_text'].tolist()
     corpus_embeddings = model.encode(corpus, convert_to_tensor=True)
     input_embedding = model.encode(description, convert_to_tensor=True)
     similarities = cosine_similarity([input_embedding.cpu().numpy()], corpus_embeddings.cpu().numpy()).flatten()
-    idx = similarities.argmax()
-    result = df.iloc[idx]
-    return result, round(similarities[idx] * 100, 2)
+    top_indices = similarities.argsort()[-top_k:][::-1]
+    results = df.iloc[top_indices].copy()
+    results["Confidence"] = [round(similarities[i] * 100, 2) for i in top_indices]
+    return results
 
 # === BLIP model setup ===
 @st.cache_resource
@@ -109,14 +110,11 @@ if image_file:
 # Classificazione finale
 if st.button("Classifica"):
     if user_input.strip():
-        result, score = classify_semantic(user_input, df_etim, semantic_model)
-        st.success(f"✅ Classe ETIM suggerita: **{result['Code']}**")
-        st.markdown(f"**Nome (EN):** {result['Description (EN)']}")
-        st.markdown(f"**Nome (IT):** {result['ETIM IT']}")
-        st.markdown(f"**Sinonimi/Traduzioni:**")
-        st.markdown(f"- ETIM CH: {result['Translation (ETIM CH)']}")
-        st.markdown(f"- Google Translate: {result['Traduttore Google']}")
-        st.markdown(f"- Traduzione DEF: {result['Traduzione_DEF']}")
-        st.markdown(f"**Confidenza AI:** {score}%")
+        top_results = classify_semantic_top_k(user_input, df_etim, semantic_model, top_k=5)
+        st.success("✅ Classi ETIM suggerite:")
+        for _, row in top_results.iterrows():
+            st.markdown(f"**{row['Code']}** – {row['ETIM IT']}  ")
+            st.markdown(f"📈 Confidenza AI: {row['Confidence']}%")
+            st.markdown("---")
     else:
         st.warning("Inserisci una descrizione, carica un PDF, un link o un'immagine.")
