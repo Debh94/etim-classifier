@@ -74,14 +74,13 @@ user_input = st.text_area("📌 Oppure inserisci direttamente la descrizione del
 pdf_file = st.file_uploader("📎 Carica una scheda tecnica in PDF (facoltativo):", type="pdf")
 if pdf_file:
     try:
-    with st.spinner("Sto analizzando il significato della descrizione..."):
-        paraphraser = load_paraphraser()
-        refined = paraphraser(user_input, max_length=100, do_sample=False)[0]['generated_text']
-        st.markdown(f"✏️ Descrizione interpretata dall'AI: _{refined}_")
-        user_input = refined
-except Exception as e:
-    st.error(f"❌ Errore durante l’analisi semantica: {e}")
-
+        with fitz.open(stream=pdf_file.read(), filetype="pdf") as doc:
+            text_pdf = " ".join(page.get_text() for page in doc)
+            user_input = text_pdf
+            if len(user_input) < 50:
+                st.warning("⚠️ Attenzione: il testo estratto dal PDF è molto breve e potrebbe non essere sufficiente.")
+    except Exception as e:
+        st.error(f"Errore nella lettura del PDF: {e}")
 
 # Inserimento URL
 url_input = st.text_input("🔗 Oppure incolla un link a una scheda prodotto online:")
@@ -101,12 +100,15 @@ if url_input:
 # Classificazione finale
 if st.button("Classifica"):
     user_input = user_input.strip()
-    # 🧠 Parafrasi del testo con modello HuggingFace
-    with st.spinner("Sto analizzando il significato della descrizione..."):
+    try:
+        with st.spinner("Sto analizzando il significato della descrizione..."):
             paraphraser = load_paraphraser()
             refined = paraphraser(user_input, max_length=100, do_sample=False)[0]['generated_text']
             st.markdown(f"✏️ Descrizione interpretata dall'AI: _{refined}_")
             user_input = refined
+    except Exception as e:
+        st.error(f"❌ Errore durante l’analisi semantica: {e}")
+
     if user_input:
         st.markdown("🧠 Testo analizzato dall'AI:")
         st.code(user_input[:600])
