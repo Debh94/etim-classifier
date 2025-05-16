@@ -35,6 +35,12 @@ def load_etim_data():
 def load_semantic_model():
     return SentenceTransformer('sentence-transformers/paraphrase-multilingual-mpnet-base-v2')
 
+from transformers import pipeline
+
+@st.cache_resource
+def load_paraphraser():
+    return pipeline("text2text-generation", model="google/flan-t5-base")
+
 def classify_semantic_top_k(description, df, model, top_k=5):
     corpus = df['combined_text'].tolist()
     corpus_embeddings = model.encode(corpus, convert_to_tensor=True)
@@ -87,6 +93,12 @@ if url_input:
 # Classificazione finale
 if st.button("Classifica"):
     user_input = user_input.strip()
+        # 🧠 Parafrasi del testo con modello HuggingFace
+        with st.spinner("Sto analizzando il significato della descrizione..."):
+            paraphraser = load_paraphraser()
+            refined = paraphraser(user_input, max_length=100, do_sample=False)[0]['generated_text']
+            st.markdown(f"✏️ Descrizione interpretata dall'AI: _{refined}_")
+            user_input = refined
     if user_input:
         st.markdown("🧠 Testo analizzato dall'AI:")
         st.code(user_input[:600])
