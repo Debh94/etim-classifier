@@ -4,19 +4,23 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 @st.cache_data
+@st.cache_data
 def load_etim_data():
-    df = pd.read_excel("Classi_9.xlsx", sheet_name="Foglio2")
-    df = df[['Code', 'Description (EN)', 'ETIM IT', 'Translation (ETIM CH)',
-             'Traduttore Google', 'Traduzione_DEF', 'Sinonimi']].fillna('')
+    df = pd.read_excel("Classi_9.xlsx")
 
-    # Nuova colonna: unione di tutto il testo utile, compresi i sinonimi
+    required_cols = ['Code', 'Description (EN)', 'ETIM IT',
+                     'Translation (ETIM CH)', 'Traduttore Google',
+                     'Traduzione_DEF', 'Sinonimi']
+
+    missing = [col for col in required_cols if col not in df.columns]
+    if missing:
+        st.error(f"❌ Mancano queste colonne nel file Excel: {missing}")
+        st.stop()
+
+    df = df[required_cols].fillna('')
     df['combined_text'] = df.apply(lambda row: ' '.join([
-        row['Description (EN)'],
-        row['ETIM IT'],
-        row['Translation (ETIM CH)'],
-        row['Traduttore Google'],
-        row['Traduzione_DEF'],
-        row['Sinonimi']  # <-- qui usiamo anche i sinonimi!
+        row['Description (EN)'], row['ETIM IT'], row['Translation (ETIM CH)'],
+        row['Traduttore Google'], row['Traduzione_DEF'], row['Sinonimi']
     ]).lower(), axis=1)
 
     return df
