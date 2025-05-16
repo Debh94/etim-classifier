@@ -93,8 +93,8 @@ if url_input:
 # Classificazione finale
 if st.button("Classifica"):
     user_input = user_input.strip()
-        # 🧠 Parafrasi del testo con modello HuggingFace
-        with st.spinner("Sto analizzando il significato della descrizione..."):
+    # 🧠 Parafrasi del testo con modello HuggingFace
+    with st.spinner("Sto analizzando il significato della descrizione..."):
             paraphraser = load_paraphraser()
             refined = paraphraser(user_input, max_length=100, do_sample=False)[0]['generated_text']
             st.markdown(f"✏️ Descrizione interpretata dall'AI: _{refined}_")
