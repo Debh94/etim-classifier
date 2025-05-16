@@ -5,8 +5,11 @@ from sklearn.metrics.pairwise import cosine_similarity
 import fitz  # PyMuPDF per leggere PDF
 import requests
 from bs4 import BeautifulSoup
+import pytesseract
+from PIL import Image
+import io
 
-# Caricamento dati ETIM con sinonimi
+# === ETIM setup ===
 @st.cache_data
 def load_etim_data():
     df = pd.read_excel("Classi_9.xlsx")
@@ -40,15 +43,16 @@ def classify_description(description, df, vectorizer, tfidf_matrix):
     result = df.iloc[idx]
     return result, round(similarity[idx] * 100, 2)
 
-# Streamlit UI
+# === Streamlit app ===
 st.set_page_config(page_title="Classificatore ETIM", layout="centered")
-st.title("🤖 Classificatore automatico ETIM da testo, PDF o URL")
-st.markdown("Inserisci una **descrizione tecnica**, carica un **PDF** o incolla un **link** per trovare la classe ETIM corretta.")
+st.title("🤖 Classificatore automatico ETIM da testo, PDF, URL o immagine")
+st.markdown("Inserisci una **descrizione**, carica un **PDF**, incolla un **link** o carica una **foto** per identificare la classe ETIM.")
 
+# Caricamento dati
 df_etim = load_etim_data()
 vectorizer, tfidf_matrix = setup_classifier(df_etim)
 
-# Input manuale
+# Input libero
 user_input = st.text_area("📌 Oppure inserisci direttamente la descrizione del prodotto:", height=150)
 
 # Caricamento PDF
@@ -61,7 +65,7 @@ if pdf_file:
     except Exception as e:
         st.error(f"Errore nella lettura del PDF: {e}")
 
-# Estrazione testo da URL
+# Inserimento URL
 url_input = st.text_input("🔗 Oppure incolla un link a una scheda prodotto online:")
 if url_input:
     try:
@@ -71,7 +75,23 @@ if url_input:
     except Exception as e:
         st.error(f"Errore nel caricamento della pagina: {e}")
 
-if st.button("Classifica"): 
+# Caricamento immagine + OCR
+image_file = st.file_uploader("📷 Oppure carica una foto dell'articolo (jpg, png):", type=["jpg", "jpeg", "png"])
+if image_file:
+    try:
+        image = Image.open(image_file)
+        st.image(image, caption="Immagine caricata", use_column_width=True)
+        text_img = pytesseract.image_to_string(image)
+        if text_img.strip():
+            user_input = text_img
+            st.info("Testo estratto dall'immagine tramite OCR.")
+        else:
+            st.warning("❌ Nessun testo rilevato nell'immagine.")
+    except Exception as e:
+        st.error(f"Errore durante l'elaborazione dell'immagine: {e}")
+
+# Classificazione finale
+if st.button("Classifica"):
     if user_input.strip():
         result, score = classify_description(user_input, df_etim, vectorizer, tfidf_matrix)
         st.success(f"✅ Classe ETIM suggerita: **{result['Code']}**")
@@ -83,4 +103,4 @@ if st.button("Classifica"):
         st.markdown(f"- Traduzione DEF: {result['Traduzione_DEF']}")
         st.markdown(f"**Confidenza AI:** {score}%")
     else:
-        st.warning("Inserisci una descrizione, carica un PDF o incolla un link per procedere.")
+        st.warning("Inserisci una descrizione, carica un PDF, un link o un'immagine.")
