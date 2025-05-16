@@ -7,10 +7,18 @@ from sklearn.metrics.pairwise import cosine_similarity
 def load_etim_data():
     df = pd.read_excel("Classi_9.xlsx", sheet_name="Foglio2")
     df = df[['Code', 'Description (EN)', 'ETIM IT', 'Translation (ETIM CH)',
-             'Traduttore Google', 'Traduzione_DEF']].fillna('')
+             'Traduttore Google', 'Traduzione_DEF', 'Sinonimi']].fillna('')
+
+    # Nuova colonna: unione di tutto il testo utile, compresi i sinonimi
     df['combined_text'] = df.apply(lambda row: ' '.join([
-        row['Description (EN)'], row['ETIM IT'], row['Translation (ETIM CH)'],
-        row['Traduttore Google'], row['Traduzione_DEF']]).lower(), axis=1)
+        row['Description (EN)'],
+        row['ETIM IT'],
+        row['Translation (ETIM CH)'],
+        row['Traduttore Google'],
+        row['Traduzione_DEF'],
+        row['Sinonimi']  # <-- qui usiamo anche i sinonimi!
+    ]).lower(), axis=1)
+
     return df
 
 @st.cache_resource
