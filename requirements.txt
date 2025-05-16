@@ -1,12 +1,8 @@
 streamlit
 pandas
 scikit-learn
-openpyxl
-PyMuPDF
-beautifulsoup4
-requests
-pytesseract
 sentence-transformers
-torch
 transformers
-Pillow
+torch
+pymupdf
+beautifulsoup4
