@@ -5,7 +5,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 import fitz  # PyMuPDF per leggere PDF
 import requests
 from bs4 import BeautifulSoup
-import pytesseract
 from PIL import Image
 import io
 
@@ -43,6 +42,22 @@ def classify_description(description, df, vectorizer, tfidf_matrix):
     result = df.iloc[idx]
     return result, round(similarity[idx] * 100, 2)
 
+# === OCR with ocr.space ===
+def ocr_space_image(image_file):
+    api_url = 'https://api.ocr.space/parse/image'
+    payload = {
+        'isOverlayRequired': False,
+        'OCREngine': 2,
+        'language': 'ita'
+    }
+    files = {'file': image_file}
+    response = requests.post(api_url, data=payload, files=files)
+    result = response.json()
+    try:
+        return result['ParsedResults'][0]['ParsedText']
+    except (KeyError, IndexError):
+        return ""
+
 # === Streamlit app ===
 st.set_page_config(page_title="Classificatore ETIM", layout="centered")
 st.title("🤖 Classificatore automatico ETIM da testo, PDF, URL o immagine")
@@ -75,16 +90,15 @@ if url_input:
     except Exception as e:
         st.error(f"Errore nel caricamento della pagina: {e}")
 
-# Caricamento immagine + OCR
+# Caricamento immagine + OCR.space
 image_file = st.file_uploader("📷 Oppure carica una foto dell'articolo (jpg, png):", type=["jpg", "jpeg", "png"])
 if image_file:
     try:
-        image = Image.open(image_file)
-        st.image(image, caption="Immagine caricata", use_column_width=True)
-        text_img = pytesseract.image_to_string(image)
+        st.image(image_file, caption="Immagine caricata", use_column_width=True)
+        text_img = ocr_space_image(image_file)
         if text_img.strip():
             user_input = text_img
-            st.info("Testo estratto dall'immagine tramite OCR.")
+            st.info("Testo estratto dall'immagine tramite ocr.space.")
         else:
             st.warning("❌ Nessun testo rilevato nell'immagine.")
     except Exception as e:
