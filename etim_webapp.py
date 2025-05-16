@@ -52,11 +52,11 @@ def ocr_space_image(image_file):
     }
     files = {'file': image_file}
     response = requests.post(api_url, data=payload, files=files)
-    result = response.json()
     try:
+        result = response.json()
         return result['ParsedResults'][0]['ParsedText']
-    except (KeyError, IndexError):
-        return ""
+    except Exception as e:
+        raise ValueError(f"Errore nel parsing del risultato OCR: {e}\nRisposta completa: {response.text}")
 
 # === Streamlit app ===
 st.set_page_config(page_title="Classificatore ETIM", layout="centered")
@@ -94,7 +94,7 @@ if url_input:
 image_file = st.file_uploader("📷 Oppure carica una foto dell'articolo (jpg, png):", type=["jpg", "jpeg", "png"])
 if image_file:
     try:
-        st.image(image_file, caption="Immagine caricata", use_column_width=True)
+        st.image(image_file, caption="Immagine caricata", use_container_width=True)
         text_img = ocr_space_image(image_file)
         if text_img.strip():
             user_input = text_img
