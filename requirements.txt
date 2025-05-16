@@ -1,3 +1,4 @@
+# Forza aggiornamento dipendenze
 streamlit
 pandas
 scikit-learn
@@ -6,4 +7,4 @@ transformers
 torch
 pymupdf
 beautifulsoup4
-openpyxl
+openpyxl==3.1.2
