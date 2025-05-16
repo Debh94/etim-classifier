@@ -6,6 +6,7 @@ PyMuPDF
 beautifulsoup4
 requests
 pytesseract
+sentence-transformers
 torch
 transformers
 Pillow
