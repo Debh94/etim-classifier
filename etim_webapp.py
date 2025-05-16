@@ -103,7 +103,9 @@ if st.button("Classifica"):
     try:
         with st.spinner("Sto analizzando il significato della descrizione..."):
             paraphraser = load_paraphraser()
-            refined = paraphraser(user_input, max_length=100, do_sample=False)[0]['generated_text']
+            # Troncamento input per evitare errori di lunghezza
+        short_input = user_input[:500]
+        refined = paraphraser(short_input, max_length=100, do_sample=False)[0]['generated_text']
             st.markdown(f"✏️ Descrizione interpretata dall'AI: _{refined}_")
             user_input = refined
     except Exception as e:
