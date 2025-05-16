@@ -86,15 +86,20 @@ if url_input:
 
 # Classificazione finale
 if st.button("Classifica"):
-    if user_input.strip():
+    user_input = user_input.strip()
+    if user_input:
         st.markdown("🧠 Testo analizzato dall'AI:")
         st.code(user_input[:600])
         top_results = classify_semantic_top_k(user_input, df_etim, semantic_model, top_k=5)
-        st.success("✅ Classi ETIM suggerite:")
-        for _, row in top_results.iterrows():
-            st.markdown(f"**{row['Code']}** – {row['ETIM IT']}  ")
-            st.markdown(f"🔤 Descrizione (EN): {row['Description (EN)']}")
-            st.markdown(f"📈 Confidenza AI: {row['Confidence']}%")
-            st.markdown("---")
+
+        if top_results.empty:
+            st.error("❌ Nessuna classe suggerita. Potresti arricchire i sinonimi nel file Excel.")
+        else:
+            st.success("✅ Classi ETIM suggerite:")
+            for _, row in top_results.iterrows():
+                st.markdown(f"**{row['Code']}** – {row['ETIM IT']}")
+                st.markdown(f"🔤 Descrizione (EN): {row['Description (EN)']}")
+                st.markdown(f"📈 Confidenza AI: {row['Confidence']}%")
+                st.markdown("---")
     else:
         st.warning("Inserisci una descrizione, carica un PDF o un link.")
