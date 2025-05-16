@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import fitz  # PyMuPDF per leggere PDF
 import requests
@@ -9,6 +8,7 @@ from PIL import Image
 import io
 from transformers import BlipProcessor, BlipForConditionalGeneration
 import torch
+from sentence_transformers import SentenceTransformer
 
 # === ETIM setup ===
 @st.cache_data
@@ -32,17 +32,17 @@ def load_etim_data():
     return df
 
 @st.cache_resource
-def setup_classifier(df):
-    vectorizer = TfidfVectorizer()
-    tfidf_matrix = vectorizer.fit_transform(df['combined_text'])
-    return vectorizer, tfidf_matrix
+def load_semantic_model():
+    return SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
-def classify_description(description, df, vectorizer, tfidf_matrix):
-    input_vec = vectorizer.transform([description.lower()])
-    similarity = cosine_similarity(input_vec, tfidf_matrix).flatten()
-    idx = similarity.argmax()
+def classify_semantic(description, df, model):
+    corpus = df['combined_text'].tolist()
+    corpus_embeddings = model.encode(corpus, convert_to_tensor=True)
+    input_embedding = model.encode(description, convert_to_tensor=True)
+    similarities = cosine_similarity([input_embedding.cpu().numpy()], corpus_embeddings.cpu().numpy()).flatten()
+    idx = similarities.argmax()
     result = df.iloc[idx]
-    return result, round(similarity[idx] * 100, 2)
+    return result, round(similarities[idx] * 100, 2)
 
 # === BLIP model setup ===
 @st.cache_resource
@@ -65,7 +65,7 @@ st.markdown("Inserisci una **descrizione**, carica un **PDF**, incolla un **link
 
 # Caricamento dati
 df_etim = load_etim_data()
-vectorizer, tfidf_matrix = setup_classifier(df_etim)
+semantic_model = load_semantic_model()
 
 # Input libero
 user_input = st.text_area("📌 Oppure inserisci direttamente la descrizione del prodotto:", height=150)
@@ -106,7 +106,7 @@ if image_file:
 # Classificazione finale
 if st.button("Classifica"):
     if user_input.strip():
-        result, score = classify_description(user_input, df_etim, vectorizer, tfidf_matrix)
+        result, score = classify_semantic(user_input, df_etim, semantic_model)
         st.success(f"✅ Classe ETIM suggerita: **{result['Code']}**")
         st.markdown(f"**Nome (EN):** {result['Description (EN)']}")
         st.markdown(f"**Nome (IT):** {result['ETIM IT']}")
