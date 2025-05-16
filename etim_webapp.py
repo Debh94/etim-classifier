@@ -86,7 +86,10 @@ if url_input:
     try:
         response = requests.get(url_input, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
-        user_input = soup.get_text(separator=' ', strip=True)
+        paragraphs = soup.find_all(['p', 'h1', 'h2', 'li'])
+        text = ' '.join(p.get_text() for p in paragraphs if len(p.get_text()) > 30)
+        user_input = text.strip()
+        st.text_area("🧾 Testo estratto dalla pagina:", value=user_input[:2000], height=150)
     except Exception as e:
         st.error(f"Errore nel caricamento della pagina: {e}")
 
