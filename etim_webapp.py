@@ -4,10 +4,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 import fitz  # PyMuPDF per leggere PDF
 import requests
 from bs4 import BeautifulSoup
-from PIL import Image
-import io
-from transformers import BlipProcessor, BlipForConditionalGeneration
-import torch
 from sentence_transformers import SentenceTransformer
 
 # === ETIM setup ===
@@ -25,6 +21,10 @@ def load_etim_data():
         st.stop()
 
     df = df[required_cols].fillna('')
+    righe_senza_sinonimi = df[df['Sinonimi'].str.strip() == '']
+    if not righe_senza_sinonimi.empty:
+        st.warning(f"🔍 Attenzione: {len(righe_senza_sinonimi)} classi non hanno sinonimi. Considera di arricchirle per migliorare la precisione.")
+
     df['combined_text'] = df.apply(lambda row: ' '.join([
         row['Description (EN)'], row['ETIM IT'], row['Translation (ETIM CH)'],
         row['Traduttore Google'], row['Traduzione_DEF'], row['Sinonimi']
@@ -45,24 +45,10 @@ def classify_semantic_top_k(description, df, model, top_k=5):
     results["Confidence"] = [round(similarities[i] * 100, 2) for i in top_indices]
     return results
 
-# === BLIP model setup ===
-@st.cache_resource
-def load_blip_model():
-    processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-    model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
-    return processor, model
-
-def generate_image_caption(image_file, processor, model):
-    image = Image.open(image_file).convert('RGB')
-    inputs = processor(image, return_tensors="pt")
-    out = model.generate(**inputs)
-    caption = processor.decode(out[0], skip_special_tokens=True)
-    return caption
-
 # === Streamlit app ===
 st.set_page_config(page_title="Classificatore ETIM", layout="centered")
-st.title("🤖 Classificatore automatico ETIM da testo, PDF, URL o immagine")
-st.markdown("Inserisci una **descrizione**, carica un **PDF**, incolla un **link** o carica una **foto** per identificare la classe ETIM.")
+st.title("🤖 Classificatore automatico ETIM da testo, PDF o URL")
+st.markdown("Inserisci una **descrizione**, carica un **PDF** o incolla un **link** per identificare la classe ETIM.")
 
 # Caricamento dati
 df_etim = load_etim_data()
@@ -78,6 +64,8 @@ if pdf_file:
         with fitz.open(stream=pdf_file.read(), filetype="pdf") as doc:
             text_pdf = " ".join(page.get_text() for page in doc)
             user_input = text_pdf
+            if len(user_input) < 50:
+                st.warning("⚠️ Attenzione: il testo estratto dal PDF è molto breve e potrebbe non essere sufficiente.")
     except Exception as e:
         st.error(f"Errore nella lettura del PDF: {e}")
 
@@ -90,26 +78,17 @@ if url_input:
         paragraphs = soup.find_all(['p', 'h1', 'h2', 'li'])
         text = ' '.join(p.get_text() for p in paragraphs if len(p.get_text()) > 30)
         user_input = text.strip()
+        if len(user_input) < 50:
+            st.warning("⚠️ Attenzione: il testo estratto dal link è molto breve e potrebbe non essere sufficiente.")
         st.text_area("🧾 Testo estratto dalla pagina:", value=user_input[:2000], height=150)
     except Exception as e:
         st.error(f"Errore nel caricamento della pagina: {e}")
 
-# Caricamento immagine + descrizione automatica (BLIP)
-image_file = st.file_uploader("📷 Oppure carica una foto dell'articolo (jpg, png):", type=["jpg", "jpeg", "png"])
-if image_file:
-    try:
-        st.image(image_file, caption="Immagine caricata", use_container_width=True)
-        with st.spinner("Sto analizzando l'immagine..."):
-            processor, model = load_blip_model()
-            label = generate_image_caption(image_file, processor, model)
-            user_input = label + ". " + user_input
-            st.info(f"🧠 Descrizione generata automaticamente: **{label}**")
-    except Exception as e:
-        st.error(f"Errore durante l'elaborazione dell'immagine: {e}")
-
 # Classificazione finale
 if st.button("Classifica"):
     if user_input.strip():
+        st.markdown("🧠 Testo analizzato dall'AI:")
+        st.code(user_input[:600])
         top_results = classify_semantic_top_k(user_input, df_etim, semantic_model, top_k=5)
         st.success("✅ Classi ETIM suggerite:")
         for _, row in top_results.iterrows():
@@ -117,4 +96,4 @@ if st.button("Classifica"):
             st.markdown(f"📈 Confidenza AI: {row['Confidence']}%")
             st.markdown("---")
     else:
-        st.warning("Inserisci una descrizione, carica un PDF, un link o un'immagine.")
+        st.warning("Inserisci una descrizione, carica un PDF o un link.")
