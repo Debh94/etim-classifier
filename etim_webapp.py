@@ -9,6 +9,10 @@ import requests
 from bs4 import BeautifulSoup
 from sentence_transformers import SentenceTransformer
 
+import pkg_resources
+installed = [p.key for p in pkg_resources.working_set]
+st.write("✅ Librerie disponibili:", installed)
+
 # === ETIM setup ===
 @st.cache_data
 def load_etim_data():
