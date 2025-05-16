@@ -6,3 +6,4 @@ transformers
 torch
 pymupdf
 beautifulsoup4
+openpyxl
