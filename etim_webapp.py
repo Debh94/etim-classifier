@@ -2,8 +2,11 @@ import streamlit as st
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import fitz  # PyMuPDF per leggere PDF
+import requests
+from bs4 import BeautifulSoup
 
-@st.cache_data
+# Caricamento dati ETIM con sinonimi
 @st.cache_data
 def load_etim_data():
     df = pd.read_excel("Classi_9.xlsx")
@@ -22,7 +25,6 @@ def load_etim_data():
         row['Description (EN)'], row['ETIM IT'], row['Translation (ETIM CH)'],
         row['Traduttore Google'], row['Traduzione_DEF'], row['Sinonimi']
     ]).lower(), axis=1)
-
     return df
 
 @st.cache_resource
@@ -38,16 +40,38 @@ def classify_description(description, df, vectorizer, tfidf_matrix):
     result = df.iloc[idx]
     return result, round(similarity[idx] * 100, 2)
 
+# Streamlit UI
 st.set_page_config(page_title="Classificatore ETIM", layout="centered")
-st.title("🤖 Classificatore automatico ETIM")
-st.markdown("Inserisci una **descrizione tecnica di prodotto** per trovare la classe ETIM più adatta.")
+st.title("🤖 Classificatore automatico ETIM da testo, PDF o URL")
+st.markdown("Inserisci una **descrizione tecnica**, carica un **PDF** o incolla un **link** per trovare la classe ETIM corretta.")
 
 df_etim = load_etim_data()
 vectorizer, tfidf_matrix = setup_classifier(df_etim)
 
-user_input = st.text_area("Descrizione del prodotto", height=150)
+# Input manuale
+user_input = st.text_area("📌 Oppure inserisci direttamente la descrizione del prodotto:", height=150)
 
-if st.button("Classifica"):
+# Caricamento PDF
+pdf_file = st.file_uploader("📎 Carica una scheda tecnica in PDF (facoltativo):", type="pdf")
+if pdf_file:
+    try:
+        with fitz.open(stream=pdf_file.read(), filetype="pdf") as doc:
+            text_pdf = " ".join(page.get_text() for page in doc)
+            user_input = text_pdf
+    except Exception as e:
+        st.error(f"Errore nella lettura del PDF: {e}")
+
+# Estrazione testo da URL
+url_input = st.text_input("🔗 Oppure incolla un link a una scheda prodotto online:")
+if url_input:
+    try:
+        response = requests.get(url_input, timeout=10)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        user_input = soup.get_text(separator=' ', strip=True)
+    except Exception as e:
+        st.error(f"Errore nel caricamento della pagina: {e}")
+
+if st.button("Classifica"): 
     if user_input.strip():
         result, score = classify_description(user_input, df_etim, vectorizer, tfidf_matrix)
         st.success(f"✅ Classe ETIM suggerita: **{result['Code']}**")
@@ -59,4 +83,4 @@ if st.button("Classifica"):
         st.markdown(f"- Traduzione DEF: {result['Traduzione_DEF']}")
         st.markdown(f"**Confidenza AI:** {score}%")
     else:
-        st.warning("Inserisci una descrizione valida per procedere.")
+        st.warning("Inserisci una descrizione, carica un PDF o incolla un link per procedere.")
