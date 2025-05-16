@@ -4,3 +4,4 @@ scikit-learn
 openpyxl
 PyMuPDF
 beautifulsoup4
+requests
