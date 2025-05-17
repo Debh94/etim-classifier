@@ -25,7 +25,7 @@ def load_resources_offline():
         st.error(f"❌ File mancante: {e.filename}. Esegui `precompute_embeddings.py` prima.")
         st.stop()
     # Modello leggero per inferenza rapida, forzato su CPU
-    model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+    model = SentenceTransformer("all-MiniLM-L6-v2")  # instantiate on default device
     return df, model, corpus_emb
 
 # Carica una sola volta (cached)
@@ -35,7 +35,7 @@ df_etim, model, corpus_emb = load_resources_offline()
 def classify_etim(description: str, df: pd.DataFrame, corpus_emb: np.ndarray,
                    model: SentenceTransformer, top_k: int = 5) -> pd.DataFrame:
     desc = description.lower().strip()
-    inp_emb = model.encode(desc, convert_to_tensor=False)
+    inp_emb = model.encode(desc, device='cpu', convert_to_tensor=False)  # force encoding on CPU
     sims = cosine_similarity([inp_emb], corpus_emb).flatten()
     top_idx = sims.argsort()[-top_k:][::-1]
     res = df.iloc[top_idx].copy()
