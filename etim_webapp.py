@@ -9,8 +9,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import pkg_resources
 
-# Mostra le librerie disponibili
-installed = [p.key for p in pkg_resources.working_set]
+# Mostra le librerie disponibili\installed = [p.key for p in pkg_resources.working_set]
 st.write("✅ Librerie disponibili:", installed)
 
 # === ETIM setup ===
@@ -47,7 +46,7 @@ def load_model():
     # Modello più leggero per prestazioni migliori
     return SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
 
-@st.cache_resource
+# Calcola embeddings senza caching per evitare errori di parametri non hashable
 def compute_embeddings(df, model):
     corpus = df['combined_text'].tolist()
     return model.encode(corpus, convert_to_tensor=True)
