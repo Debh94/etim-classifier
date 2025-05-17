@@ -20,7 +20,12 @@ st.write("✅ Librerie disponibili:", installed)
 # === ETIM setup ===
 @st.cache_data
 def load_etim_data():
-    df = pd.read_csv("Classi_9.csv", encoding='utf-8')
+    # Carica i dati ETIM da file Excel
+    try:
+        df = pd.read_excel("Classi_9.xlsx", engine='openpyxl')
+    except FileNotFoundError:
+        st.error("❌ File 'Classi_9.xlsx' non trovato. Controlla che sia presente nella cartella.")
+        st.stop()
 
     required_cols = [
         'Code', 'Description (EN)', 'ETIM IT',
