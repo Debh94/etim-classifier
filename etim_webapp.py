@@ -1,15 +1,18 @@
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
+import asyncio
+# Imposta un nuovo event loop per evitare RuntimeError di Streamlit
+asyncio.set_event_loop(asyncio.new_event_loop())
+
 import streamlit as st
 st.set_page_config(page_title="Classificatore ETIM", layout="centered")
 
 import pandas as pd
-from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import pkg_resources
 
-# Mostra le librerie disponibili
+# Mostra le librerie disponibili per debug
 installed = [p.key for p in pkg_resources.working_set]
 st.write("✅ Librerie disponibili:", installed)
 
@@ -40,12 +43,13 @@ def load_etim_data():
 
 @st.cache_resource
 def load_model():
-    """Carica un modello leggero per embedding."""
+    """Carica un modello leggero per embedding (lazy import per evitare watcher issues)."""
+    from sentence_transformers import SentenceTransformer
     return SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
 
 @st.cache_resource
 def compute_embeddings(_model, df):
-    """Precalcola embeddings del corpus ETIM (model non verrà hashato)."""
+    """Precalcola embeddings del corpus ETIM."""
     texts = df['combined_text'].tolist()
     return _model.encode(texts, convert_to_tensor=True)
 
