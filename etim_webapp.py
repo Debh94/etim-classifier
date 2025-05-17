@@ -24,8 +24,8 @@ def load_resources_offline():
     except FileNotFoundError as e:
         st.error(f"❌ File mancante: {e.filename}. Esegui `precompute_embeddings.py` prima.")
         st.stop()
-    # Modello leggero per inferenza rapida
-    model = SentenceTransformer("all-MiniLM-L6-v2")
+    # Modello leggero per inferenza rapida, forzato su CPU
+    model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
     return df, model, corpus_emb
 
 # Carica una sola volta (cached)
@@ -74,7 +74,7 @@ if st.button("Classifica"):
 #     r['Traduttore Google'], r['Traduzione_DEF'], r['Sinonimi']
 # ]).lower(), axis=1)
 #
-# model = SentenceTransformer("all-MiniLM-L6-v2")
+# model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
 # emb = model.encode(df['combined_text'].tolist(), convert_to_tensor=False)
 # np.save("etim_embeddings.npy", emb)
 # df.to_pickle("etim_df.pkl")
