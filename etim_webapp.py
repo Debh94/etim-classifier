@@ -1,3 +1,7 @@
+import os
+# Disabilita il file-watcher che causa errori su torch.classes
+os.environ["STREAMLIT_WATCH_FILES"] = "false"
+
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -5,95 +9,81 @@ import streamlit as st
 st.set_page_config(page_title="Classificatore ETIM", layout="centered")
 
 import pandas as pd
+from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-import pkg_resources
 
-# Mostra le librerie disponibili per debug
-installed = [p.key for p in pkg_resources.working_set]
-st.write("✅ Librerie disponibili:", installed)
-
-# === Funzioni di caricamento ===
-@st.cache_data
-def load_etim_data():
-    """Carica il file Excel e prepara il DataFrame."""
+# Unico punto cached che non prende argomenti non-hashable
+@st.cache_resource
+def load_etim_resources():
+    # 1) Carica e pulisci il file Excel
     try:
-        df = pd.read_excel("Classi_9.xlsx", engine='openpyxl')
+        df = pd.read_excel("Classi_9.xlsx", engine="openpyxl")
     except FileNotFoundError:
-        st.error("❌ File 'Classi_9.xlsx' non trovato nella cartella. Aggiungilo prima di eseguire l'app.")
+        st.error("❌ File 'Classi_9.xlsx' non trovato. Aggiungilo nella cartella dell'app.")
         st.stop()
 
     cols = [
-        'Code', 'Description (EN)', 'ETIM IT',
-        'Translation (ETIM CH)', 'Traduttore Google',
-        'Traduzione_DEF', 'Sinonimi'
+        "Code","Description (EN)","ETIM IT",
+        "Translation (ETIM CH)","Traduttore Google",
+        "Traduzione_DEF","Sinonimi"
     ]
     missing = [c for c in cols if c not in df.columns]
     if missing:
-        st.error(f"❌ Mancano colonne nel file Excel: {missing}")
+        st.error(f"❌ Mancano queste colonne nel file Excel: {missing}")
         st.stop()
 
-    df = df[cols].fillna('')
-    df['combined_text'] = df.apply(
-        lambda r: ' '.join([
-            r['Description (EN)'], r['ETIM IT'],
-            r['Translation (ETIM CH)'], r['Traduttore Google'],
-            r['Traduzione_DEF'], r['Sinonimi']
-        ]).lower(), axis=1
+    df = df[cols].fillna("")
+    df["combined_text"] = df.apply(
+        lambda r: " ".join([
+            r["Description (EN)"],
+            r["ETIM IT"],
+            r["Translation (ETIM CH)"],
+            r["Traduttore Google"],
+            r["Traduzione_DEF"],
+            r["Sinonimi"],
+        ]).lower(),
+        axis=1
     )
-    return df
 
-@st.cache_resource
-def load_model():
-    """Carica un modello leggero per embedding."""
-    from sentence_transformers import SentenceTransformer
-    return SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
+    # 2) Instanzia il modello (leggero) e precalcola embeddings
+    model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+    corpus_emb = model.encode(
+        df["combined_text"].tolist(),
+        convert_to_tensor=True
+    )
 
-# Questa funzione NON è cachata per evitare errori di hash
-def compute_embeddings(model, df):
-    """Precalcola embeddings del corpus ETIM usando il modello fornito."""
-    texts = df['combined_text'].tolist()
-    return model.encode(texts, convert_to_tensor=True)
+    return df, model, corpus_emb
 
-# === Caricamento iniziale dati e modelli ===
-# Carica dataset ETIM e modello
- df_etim = load_etim_data()
-model = load_model()
-# Precalcola embeddings del corpus
-corpus_emb = compute_embeddings(model, df_etim)
+# Carica TUTTO in un colpo solo
+df_etim, model, corpus_emb = load_etim_resources()
 
-# === Funzione di classificazione ===
-def classify_etim(description, df, corpus_emb, model, top_k=5):
-    """Ritorna le migliori top_k classi ETIM con confidenza percentuale."""
-    inp_emb = model.encode(description.lower(), convert_to_tensor=True)
-    sims = cosine_similarity(
-        [inp_emb.cpu().numpy()], corpus_emb.cpu().numpy()
-    ).flatten()
-    idx = sims.argsort()[-top_k:][::-1]
-    res = df.iloc[idx].copy()
-    res['Confidence'] = [round(float(s) * 100, 2) for s in sims[idx]]
-    return res
-
-# === Interfaccia Streamlit ===
+# UI
 st.title("🤖 Classificatore automatico ETIM")
-st.markdown("Inserisci la descrizione del prodotto per ottenere la classe ETIM corretta.")
+st.markdown("Inserisci la **descrizione** del prodotto per ottenere la classe ETIM corretta.")
 
-# Input descrizione prodotto
 user_input = st.text_area("📌 Descrizione del prodotto:", height=150)
 
 if st.button("Classifica"):
     desc = user_input.strip()
     if not desc:
-        st.warning("⚠️ Inserisci una descrizione prima di continuare.")
+        st.warning("⚠️ Inserisci una descrizione prima di procedere.")
     else:
         with st.spinner("🔍 Classificazione in corso..."):
-            results = classify_etim(desc, df_etim, corpus_emb, model)
+            inp_emb = model.encode(desc.lower(), convert_to_tensor=True)
+            sims = cosine_similarity(
+                [inp_emb.cpu().numpy()],
+                corpus_emb.cpu().numpy()
+            ).flatten()
+            top_idx = sims.argsort()[-5:][::-1]
+
+            results = df_etim.iloc[top_idx].copy()
+            results["Confidence"] = [round(float(s)*100, 2) for s in sims[top_idx]]
+
         if results.empty:
-            st.error("❌ Nessun suggerimento trovato. Verifica il file ETIM e i dati.")
+            st.error("❌ Nessun suggerimento trovato. Verifica il file ETIM.")
         else:
             st.success("✅ Classi ETIM suggerite:")
             for _, r in results.iterrows():
-                st.markdown(f"**{r['Code']}** – {r['ETIM IT']} (Confidenza: {r['Confidence']}%)")
-                st.markdown(f"🔤 Descrizione EN: {r['Description (EN)']}")
+                st.markdown(f"**{r['Code']}** – {r['ETIM IT']} (Conf.: {r['Confidence']}%)")
+                st.markdown(f"🔤 EN: {r['Description (EN)']}")
                 st.markdown("---")
-
-# Fine dell'app
