@@ -32,27 +32,31 @@ def load_etim_data():
         st.stop()
 
     df = df[cols].fillna('')
-    df['combined_text'] = df.apply(lambda r: ' '.join([
-        r['Description (EN)'], r['ETIM IT'], r['Translation (ETIM CH)'],
-        r['Traduttore Google'], r['Traduzione_DEF'], r['Sinonimi']
-    ]).lower(), axis=1)
+    df['combined_text'] = df.apply(
+        lambda r: ' '.join([
+            r['Description (EN)'], r['ETIM IT'], r['Translation (ETIM CH)'],
+            r['Traduttore Google'], r['Traduzione_DEF'], r['Sinonimi']
+        ]).lower(),
+        axis=1
+    )
     return df
 
 @st.cache_resource
 def load_model():
-    """Carica modello più leggero per embedding."""
+    """Carica modello leggero per embedding."""
     return SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
 
-# NOTA: nessun decorator su questa funzione per evitare parametri non-hashable
+# Nessun decorator per evitare problemi di hashable
 def compute_embeddings(df):
     """Precalcola embeddings del corpus ETIM."""
     model = load_model()
     texts = df['combined_text'].tolist()
-    return model.encode(texts, convert_to_tensor=True)
+    emb = model.encode(texts, convert_to_tensor=True)
+    return emb
 
 @st.cache_resource
 def get_corpus_embeddings():
-    """Ritorna DataFrame e embeddings precomputati."""
+    """Ritorna DataFrame ETIM e embeddings precomputati."""
     df = load_etim_data()
     emb = compute_embeddings(df)
     return df, emb
@@ -60,10 +64,13 @@ def get_corpus_embeddings():
 # Funzione di classificazione
 def classify_etim(desc, df, corpus_emb, model, top_k=5):
     inp_emb = model.encode(desc.lower(), convert_to_tensor=True)
-    sims = cosine_similarity([inp_emb.cpu().numpy()], corpus_emb.cpu().numpy()).flatten()
+    sims = cosine_similarity(
+        [inp_emb.cpu().numpy()],
+        corpus_emb.cpu().numpy()
+    ).flatten()
     idx = sims.argsort()[-top_k:][::-1]
     res = df.iloc[idx].copy()
-    res['Confidence'] = [round(s*100,2) for s in sims[idx]]
+    res['Confidence'] = [round(s * 100, 2) for s in sims[idx]]
     return res
 
 # === Streamlit UI ===
@@ -92,3 +99,5 @@ if st.button("Classifica"):
                 st.markdown(f"**{r['Code']}** – {r['ETIM IT']} (Conf.: {r['Confidence']}%)")
                 st.markdown(f"🔤 EN: {r['Description (EN)']}")
                 st.markdown("---")
+
+# Fine dell'app
