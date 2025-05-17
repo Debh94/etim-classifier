@@ -5,8 +5,8 @@ import streamlit as st
 st.set_page_config(page_title="Classificatore ETIM", layout="centered")
 
 import pandas as pd
-import pkg_resources
 from sklearn.metrics.pairwise import cosine_similarity
+import pkg_resources
 
 # Mostra le librerie disponibili per debug
 installed = [p.key for p in pkg_resources.working_set]
@@ -22,9 +22,11 @@ def load_etim_data():
         st.error("❌ File 'Classi_9.xlsx' non trovato nella cartella. Aggiungilo prima di eseguire l'app.")
         st.stop()
 
-    cols = ['Code', 'Description (EN)', 'ETIM IT',
-            'Translation (ETIM CH)', 'Traduttore Google',
-            'Traduzione_DEF', 'Sinonimi']
+    cols = [
+        'Code', 'Description (EN)', 'ETIM IT',
+        'Translation (ETIM CH)', 'Traduttore Google',
+        'Traduzione_DEF', 'Sinonimi'
+    ]
     missing = [c for c in cols if c not in df.columns]
     if missing:
         st.error(f"❌ Mancano colonne nel file Excel: {missing}")
@@ -46,7 +48,7 @@ def load_model():
     from sentence_transformers import SentenceTransformer
     return SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
 
-# Nessun decorator per questa funzione per evitare problemi di hash
+# Questa funzione NON è cachata per evitare errori di hash
 def compute_embeddings(model, df):
     """Precalcola embeddings del corpus ETIM usando il modello fornito."""
     texts = df['combined_text'].tolist()
@@ -63,7 +65,9 @@ corpus_emb = compute_embeddings(model, df_etim)
 def classify_etim(description, df, corpus_emb, model, top_k=5):
     """Ritorna le migliori top_k classi ETIM con confidenza percentuale."""
     inp_emb = model.encode(description.lower(), convert_to_tensor=True)
-    sims = cosine_similarity([inp_emb.cpu().numpy()], corpus_emb.cpu().numpy()).flatten()
+    sims = cosine_similarity(
+        [inp_emb.cpu().numpy()], corpus_emb.cpu().numpy()
+    ).flatten()
     idx = sims.argsort()[-top_k:][::-1]
     res = df.iloc[idx].copy()
     res['Confidence'] = [round(float(s) * 100, 2) for s in sims[idx]]
