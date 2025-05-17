@@ -9,7 +9,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import pkg_resources
 
-# Mostra le librerie disponibili per debug
+# Mostra le librerie disponibili
 installed = [p.key for p in pkg_resources.working_set]
 st.write("✅ Librerie disponibili:", installed)
 
@@ -20,7 +20,7 @@ def load_etim_data():
     try:
         df = pd.read_excel("Classi_9.xlsx", engine='openpyxl')
     except FileNotFoundError:
-        st.error("❌ File 'Classi_9.xlsx' non trovato. Aggiungilo alla cartella dell'app.")
+        st.error("❌ File 'Classi_9.xlsx' non trovato. Aggiungilo nella cartella dell'app.")
         st.stop()
 
     cols = ['Code', 'Description (EN)', 'ETIM IT',
@@ -43,15 +43,17 @@ def load_model():
     """Carica un modello leggero per embedding."""
     return SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
 
+@st.cache_resource
+def compute_embeddings(_model, df):
+    """Precalcola embeddings del corpus ETIM (model non verrà hashato)."""
+    texts = df['combined_text'].tolist()
+    return _model.encode(texts, convert_to_tensor=True)
+
 # === Caricamento iniziale ===
-# Dati ETIM e modello
+# Dati ETIM, modello e embeddings precomputate
  df_etim = load_etim_data()
 model = load_model()
-# Precomputa embeddings del corpus
-corpus_emb = model.encode(
-    df_etim['combined_text'].tolist(),
-    convert_to_tensor=True
-)
+corpus_emb = compute_embeddings(model, df_etim)
 
 # === Funzione di classificazione ===
 def classify_etim(description, df, corpus_emb, model, top_k=5):
