@@ -79,8 +79,11 @@ st.title("🤖 Classificatore automatico ETIM")
 st.markdown("Inserisci la descrizione del prodotto per ottenere la classe ETIM.")
 
 # Carica dati ed embeddings
- df_etim, corpus_emb = get_corpus_embeddings()
+ # Carica insieme DataFrame e embeddings (cached)
+df_etim, corpus_emb = get_corpus_embeddings()
+# Carica il modello per le nuove descrizioni
 model = load_model()
+
 
 # Input dell'utente
 user_input = st.text_area("📌 Descrizione del prodotto:", height=150)
