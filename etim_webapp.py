@@ -45,7 +45,6 @@ def load_etim_data():
 model = load_model()
 df_etim = load_etim_data()
 
-# Calcola gli embedding per tutte le classi
 @st.cache_data
 def embed_etim_classes(df):
     return model.encode(df['combined_text'].tolist(), convert_to_tensor=True)
@@ -86,7 +85,6 @@ if st.button("Classifica"):
                 st.markdown(f"🔤 Descrizione EN: {r['Description (EN)']}")
                 st.markdown("---")
 
-            # ⬇⬇⬇ MODULO FEEDBACK ⬇⬇⬇
             st.subheader("📣 Seleziona la classe corretta tra quelle suggerite")
 
             class_options = [
