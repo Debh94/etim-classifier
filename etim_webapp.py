@@ -6,6 +6,8 @@ st.set_page_config(page_title="Classificatore ETIM", layout="centered")
 
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
+from datetime import datetime
+import os
 
 @st.cache_resource
 def load_model():
@@ -65,11 +67,54 @@ if st.button("Classifica"):
             query_embedding = model.encode(query, convert_to_tensor=True)
             hits = util.semantic_search(query_embedding, corpus_embeddings, top_k=5)[0]
 
-            st.success("✅ Classi ETIM suggerite:")
+            results = []
             for hit in hits:
                 idx = hit['corpus_id']
                 score = round(float(hit['score']) * 100, 2)
-                row = df_etim.iloc[idx]
-                st.markdown(f"**{row['Code']}** – {row['ETIM IT']} (Confidenza: {score}%)")
-                st.markdown(f"🔤 Descrizione EN: {row['Description (EN)']}")
+                row = df_etim.iloc[idx].copy()
+                row['Confidence'] = score
+                results.append(row)
+
+            results = pd.DataFrame(results)
+
+        if results.empty:
+            st.error("❌ Nessun suggerimento trovato.")
+        else:
+            st.success("✅ Classi ETIM suggerite:")
+            for _, r in results.iterrows():
+                st.markdown(f"**{r['Code']}** – {r['ETIM IT']} (Confidenza: {r['Confidence']}%)")
+                st.markdown(f"🔤 Descrizione EN: {r['Description (EN)']}")
                 st.markdown("---")
+
+            # ⬇️ Modulo feedback
+            st.subheader("📳 Seleziona la classe corretta tra quelle suggerite")
+
+            class_options = [
+                f"{r['Code']} – {r['ETIM IT']} (Confidenza: {r['Confidence']}%)"
+                for _, r in results.iterrows()
+            ]
+            selected = st.radio("🟢 Quale classe è corretta?", class_options)
+
+            commento = st.text_area("✏️ Commenti aggiuntivi (opzionale):")
+
+            if st.button("Invia feedback"):
+                idx = class_options.index(selected)
+                r = results.iloc[idx]
+
+                feedback_data = {
+                    "timestamp": datetime.now().isoformat(),
+                    "descrizione_utente": user_input,
+                    "classe_selezionata": r['Code'],
+                    "etim_it": r['ETIM IT'],
+                    "confidenza": r['Confidence'],
+                    "commento": commento,
+                    "classi_suggerite": "; ".join([c.split(" (")[0] for c in class_options])
+                }
+
+                feedback_df = pd.DataFrame([feedback_data])
+                if os.path.exists("feedback.csv"):
+                    feedback_df.to_csv("feedback.csv", mode='a', header=False, index=False)
+                else:
+                    feedback_df.to_csv("feedback.csv", index=False)
+
+                st.success("✅ Grazie per aver indicato la classe corretta!")
