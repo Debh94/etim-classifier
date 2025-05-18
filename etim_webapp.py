@@ -86,8 +86,8 @@ if st.button("Classifica"):
                 st.markdown(f"🔤 Descrizione EN: {r['Description (EN)']}")
                 st.markdown("---")
 
-            # ⬇️ Modulo feedback
-            st.subheader("📳 Seleziona la classe corretta tra quelle suggerite")
+            # ⬇⬇⬇ MODULO FEEDBACK ⬇⬇⬇
+            st.subheader("📣 Seleziona la classe corretta tra quelle suggerite")
 
             class_options = [
                 f"{r['Code']} – {r['ETIM IT']} (Confidenza: {r['Confidence']}%)"
