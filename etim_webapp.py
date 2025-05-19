@@ -4,11 +4,12 @@ logging.basicConfig(level=logging.INFO)
 import streamlit as st
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
+import wikipedia
 from datetime import datetime
-import openai
 
-st.set_page_config(page_title="Classificatore ETIM con AI", layout="centered")
+st.set_page_config(page_title="Classificatore ETIM gratuito", layout="centered")
 
+# === MODELLI LOCALI ===
 @st.cache_resource
 def load_model():
     return SentenceTransformer('all-MiniLM-L6-v2')
@@ -33,14 +34,16 @@ def load_etim_data():
 def embed_etim_classes(df):
     return model.encode(df['combined_text'].tolist(), convert_to_tensor=True)
 
+# === CARICAMENTO ===
 model = load_model()
 df_etim = load_etim_data()
 corpus_embeddings = embed_etim_classes(df_etim)
 
-tab1, tab2 = st.tabs(["📥 Classificatore", "🧠 ChatGPT"])
+tab1, tab2 = st.tabs(["📥 Classificatore", "📚 Definizione (Wikipedia)"])
 
+# === TAB 1: CLASSIFICATORE ===
 with tab1:
-    st.title("📥 Classificatore ETIM")
+    st.title("📥 Classificatore ETIM gratuito")
     st.markdown("Inserisci una descrizione di prodotto per ricevere la **classe ETIM più adatta**.")
 
     user_input = st.text_area("✏️ Descrizione del prodotto:", height=150)
@@ -74,43 +77,22 @@ with tab1:
 📊 Confidenza: {r['Confidence']}%""")
                     st.markdown("---")
 
+# === TAB 2: ASSISTENTE GRATUITO CON WIKIPEDIA ===
 with tab2:
-    st.title("🧠 Assistente AI - ChatGPT")
-    st.markdown("Scrivi una descrizione o un nome prodotto: l'assistente GPT ti spiega cos'è e come cercarlo nel classificatore ETIM.")
+    st.title("📚 Assistente gratuito (Wikipedia)")
+    st.markdown("Scrivi il nome di un oggetto per ricevere una definizione automatica da Wikipedia.")
 
-    if "OPENAI_API_KEY" not in st.secrets:
-        st.error("❌ API key OpenAI mancante. Inseriscila nei Secrets con chiave 'OPENAI_API_KEY'.")
-    else:
-        from openai import OpenAI
-        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
-        with st.form("chatgpt_form"):
-            gpt_query = st.text_input("💬 Descrizione da interpretare:", key="query_gpt")
-            submitted = st.form_submit_button("Chiedi a ChatGPT")
-
-        if submitted and gpt_query.strip():
-            with st.spinner("🤖 Sto interpretando l'oggetto..."):
-                try:
-                    response = client.chat.completions.create(
-                        model="gpt-3.5-turbo",
-                        messages=[
-                            {"role": "system", "content": "Sei un assistente tecnico esperto di classificazione ETIM."},
-                            {"role": "user", "content": f"""
-L'utente vuole capire meglio questo oggetto: "{gpt_query.strip()}".
-
-1. Dai una breve definizione tecnica.
-2. Spiega come si usa.
-3. Suggerisci dove cercarlo nel classificatore ETIM (es. nome famiglia o funzione).
-
-Usa un linguaggio chiaro ma tecnico.
-"""}
-                        ],
-                        temperature=0.4
-                    )
-
-                    risposta = response.choices[0].message.content
-                    st.success("✅ Ecco la spiegazione intelligente:")
-                    st.markdown(risposta)
-
-                except Exception as e:
-                    st.error(f"Errore nella risposta GPT: {e}")
+    term = st.text_input("🔍 Oggetto da cercare:")
+    if st.button("Cerca definizione") and term.strip():
+        try:
+            wikipedia.set_lang("it")
+            summary = wikipedia.summary(term.strip(), sentences=3, auto_suggest=True, redirect=True)
+            st.success("✅ Ecco cosa ho trovato:")
+            st.markdown(summary)
+        except wikipedia.exceptions.DisambiguationError as e:
+            st.warning("⚠️ Il termine è ambiguo. Prova a essere più preciso. Esempi:")
+            st.markdown(", ".join(e.options[:5]))
+        except wikipedia.exceptions.PageError:
+            st.error("❌ Nessuna definizione trovata. Prova con un altro termine.")
+        except Exception as ex:
+            st.error(f"Errore durante la ricerca: {ex}")
