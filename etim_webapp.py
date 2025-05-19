@@ -7,13 +7,15 @@ st.set_page_config(page_title="Classificatore ETIM", layout="centered")
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
 from datetime import datetime
+import json
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# === GOOGLE SHEET SETUP ===
+# === GOOGLE SHEET SETUP (usando st.secrets) ===
 def save_feedback_to_google_sheet(feedback_row):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("google_credentials.json", scope)
+    creds_dict = json.loads(st.secrets["GOOGLE_SERVICE_ACCOUNT"])
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
     sheet = client.open_by_key("1PUJJKuMbbI4oyBtOTO6spDmstNeyLQXPMOAtdWK839U").sheet1
 
