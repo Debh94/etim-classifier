@@ -8,3 +8,5 @@ torch
 pymupdf
 beautifulsoup4
 openpyxl==3.1.2
+gspread
+oauth2client
