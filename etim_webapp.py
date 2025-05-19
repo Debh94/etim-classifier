@@ -69,19 +69,11 @@ with tab1:
             else:
                 st.success("Classi ETIM suggerite:")
                 for _, r in results_df.iterrows():
-                    st.markdown("**{}** - {}  
-Descrizione EN: {}  
-Traduzioni: {}, {}, {}  
-Confidenza: {}%".format(
-                        r['Code'],
-                        r['ETIM IT'],
-                        r['Description (EN)'],
-                        r['Translation (ETIM CH)'],
-                        r['Traduttore Google'],
-                        r['Traduzione_DEF'],
-                        r['Confidence']
-                    ))
-                    st.markdown("---")
+                    st.markdown(f"""**{r['Code']}** - {r['ETIM IT']}
+Descrizione EN: {r['Description (EN)']}
+Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}
+Confidenza: {r['Confidence']}%
+""")
 
 with tab2:
     st.title("GianPieTro - il tuo assistente gratuito")
