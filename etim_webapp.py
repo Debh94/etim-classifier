@@ -1,96 +1,50 @@
-import logging
-logging.basicConfig(level=logging.INFO)
-
 import streamlit as st
-import pandas as pd
-from sentence_transformers import SentenceTransformer, util
-from datetime import datetime
+import openai
+import os
 
-st.set_page_config(page_title="ETIM AI Assistant", layout="centered")
+st.set_page_config(page_title="Assistente AI ETIM con ChatGPT", layout="centered")
 
-@st.cache_resource
-def load_model():
-    return SentenceTransformer('all-MiniLM-L6-v2')
+st.title("🧠 Assistente AI - Cos'è questo oggetto?")
+st.markdown("Scrivi una parola o frase per ottenere **una spiegazione intelligente** dell'oggetto e suggerimenti su dove cercarlo nel classificatore ETIM.")
 
-@st.cache_data
-def load_etim_data():
-    df = pd.read_excel("Classi_9.xlsx", engine="openpyxl")
-    df = df.fillna('')
-    df['combined_text'] = df.apply(
-        lambda row: ' '.join([
-            row['Description (EN)'],
-            row['ETIM IT'],
-            row['Translation (ETIM CH)'],
-            row['Traduttore Google'],
-            row['Traduzione_DEF'],
-            row['Sinonimi']
-        ]).lower(), axis=1
-    )
-    return df
+# Verifica presenza API Key
+if "OPENAI_API_KEY" not in st.secrets:
+    st.error("❌ API key OpenAI mancante. Inseriscila in Streamlit Secrets con chiave 'OPENAI_API_KEY'.")
+    st.stop()
 
-@st.cache_data
-def embed_etim_classes(df):
-    return model.encode(df['combined_text'].tolist(), convert_to_tensor=True)
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-model = load_model()
-df_etim = load_etim_data()
-corpus_embeddings = embed_etim_classes(df_etim)
+user_input = st.text_input("🔍 Scrivi qui la tua descrizione, codice o nome commerciale:")
 
-tab1, tab2 = st.tabs(["📥 Classificatore", "🧠 Assistente AI"])
+if user_input.strip():
+    prompt = f"""
+Sei un esperto tecnico che lavora con la classificazione di prodotti del settore edilizia e architettura, in particolare con la classificazione ETIM.
 
-with tab1:
-    st.title("📥 Classificatore ETIM")
-    st.markdown("Inserisci una descrizione di prodotto per ricevere la **classe ETIM più adatta**.")
+L'utente ti chiede cosa significa un oggetto con questa descrizione: "{user_input.strip()}".
 
-    user_input = st.text_area("✏️ Descrizione del prodotto:", height=150)
-    if st.button("Classifica"):
-        query = user_input.strip().lower()
-        if not query:
-            st.warning("⚠️ Inserisci una descrizione.")
-        else:
-            with st.spinner("🔍 Analisi semantica in corso..."):
-                query_embedding = model.encode(query, convert_to_tensor=True)
-                hits = util.semantic_search(query_embedding, corpus_embeddings, top_k=5)[0]
+Devi rispondere:
+1. Con una **breve definizione tecnica** dell'oggetto
+2. Con **esempi di utilizzo**
+3. Con un **suggerimento su come cercarlo nel classificatore ETIM**, anche stimando il tipo di famiglia merceologica.
 
-                results = []
-                for hit in hits:
-                    idx = hit['corpus_id']
-                    score = round(float(hit['score']) * 100, 2)
-                    row = df_etim.iloc[idx].copy()
-                    row['Confidence'] = score
-                    results.append(row)
+La risposta deve essere semplice, diretta e utile a chi non è esperto.
+"""
 
-                results_df = pd.DataFrame(results)
+    with st.spinner("🤖 Sto cercando di interpretare l'oggetto..."):
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "Sei un assistente tecnico esperto di classificazione ETIM."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.4,
+                max_tokens=500
+            )
 
-            if results_df.empty:
-                st.error("❌ Nessun suggerimento trovato.")
-            else:
-                st.success("✅ Classi ETIM suggerite:")
-                for _, r in results_df.iterrows():
-                    st.markdown(f"""**{r['Code']}** – {r['ETIM IT']}  
-🌍 *{r['Description (EN)']}*  
-🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}  
-📊 Confidenza: {r['Confidence']}%""")
-                    st.markdown("---")
+            answer = response.choices[0].message.content
+            st.success("✅ Ecco la spiegazione generata dall'assistente:")
+            st.markdown(answer)
 
-with tab2:
-    st.title("🧠 Assistente AI - Cos'è questo oggetto?")
-    st.markdown("Scrivi una parola o frase per ottenere un'**interpretazione del significato** del prodotto.")
-
-    ai_query = st.text_input("🔍 Cerca di che oggetto stiamo parlando:")
-
-    if ai_query.strip():
-        with st.spinner("🧠 Sto cercando di capire a cosa ti riferisci..."):
-            query_embedding = model.encode(ai_query.strip().lower(), convert_to_tensor=True)
-            hits = util.semantic_search(query_embedding, corpus_embeddings, top_k=1)[0]
-
-            if not hits:
-                st.warning("⚠️ Nessun risultato trovato.")
-            else:
-                idx = hits[0]['corpus_id']
-                r = df_etim.iloc[idx]
-                st.success("✅ Ecco cosa potresti intendere:")
-                st.markdown(f"""**Oggetto interpretato:** {r['ETIM IT']}  
-🌍 *Descrizione tecnica (EN)*: {r['Description (EN)']}  
-🇮🇹 Traduzioni disponibili: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}""")
-                st.markdown("👉 Copia questa interpretazione per usarla nel classificatore.")
+        except Exception as e:
+            st.error(f"Errore durante la richiesta a OpenAI: {e}")
