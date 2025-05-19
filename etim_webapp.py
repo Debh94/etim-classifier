@@ -69,28 +69,28 @@ with tab1:
                 for _, r in results_df.iterrows():
                     st.markdown(f"""**{r['Code']}** – {r['ETIM IT']}  
 🌍 *{r['Description (EN)']}*  
-🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}""")
+🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}  
+📊 Confidenza: {r['Confidence']}%""")
                     st.markdown("---")
 
 with tab2:
-    st.title("🧠 Assistente AI")
-    st.markdown("Hai dubbi su un oggetto? Scrivi una parola chiave o descrizione e ti aiutiamo a capirlo.")
+    st.title("🧠 Assistente AI - Cos'è questo oggetto?")
+    st.markdown("Scrivi una parola o frase per ottenere un'**interpretazione del significato** del prodotto.")
 
-    ai_query = st.text_input("🔍 Cerca una parola o descrizione:")
+    ai_query = st.text_input("🔍 Cerca di che oggetto stiamo parlando:")
 
     if ai_query.strip():
-        with st.spinner("🤖 Analisi e ricerca in corso..."):
+        with st.spinner("🧠 Sto cercando di capire a cosa ti riferisci..."):
             query_embedding = model.encode(ai_query.strip().lower(), convert_to_tensor=True)
-            hits = util.semantic_search(query_embedding, corpus_embeddings, top_k=3)[0]
+            hits = util.semantic_search(query_embedding, corpus_embeddings, top_k=1)[0]
 
             if not hits:
-                st.warning("⚠️ Nessuna classe trovata.")
+                st.warning("⚠️ Nessun risultato trovato.")
             else:
-                st.subheader("📘 Risultati assistente AI")
-                for hit in hits:
-                    idx = hit['corpus_id']
-                    r = df_etim.iloc[idx]
-                    st.markdown(f"""**{r['Code']}** – {r['ETIM IT']}  
-🌍 *{r['Description (EN)']}*  
-🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}""")
-                    st.markdown("---")
+                idx = hits[0]['corpus_id']
+                r = df_etim.iloc[idx]
+                st.success("✅ Ecco cosa potresti intendere:")
+                st.markdown(f"""**Oggetto interpretato:** {r['ETIM IT']}  
+🌍 *Descrizione tecnica (EN)*: {r['Description (EN)']}  
+🇮🇹 Traduzioni disponibili: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}""")
+                st.markdown("👉 Copia questa interpretazione per usarla nel classificatore.")
