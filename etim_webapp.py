@@ -7,6 +7,25 @@ st.set_page_config(page_title="Classificatore ETIM", layout="centered")
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
 from datetime import datetime
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+
+# === GOOGLE SHEET SETUP ===
+def save_feedback_to_google_sheet(feedback_row):
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_name("google_credentials.json", scope)
+    client = gspread.authorize(creds)
+    sheet = client.open_by_key("1PUJJKuMbbI4oyBtOTO6spDmstNeyLQXPMOAtdWK839U").sheet1
+
+    sheet.append_row([
+        feedback_row["timestamp"],
+        feedback_row["descrizione_utente"],
+        feedback_row["classe_selezionata"],
+        feedback_row["etim_it"],
+        feedback_row["confidenza"],
+        feedback_row["commento"],
+        feedback_row["classi_suggerite"]
+    ])
 
 @st.cache_resource
 def load_model():
@@ -29,10 +48,6 @@ def load_etim_data():
         ]).lower(), axis=1
     )
     return df
-
-# Inizializzazione session_state per i feedback
-if 'feedback' not in st.session_state:
-    st.session_state.feedback = []
 
 model = load_model()
 df_etim = load_etim_data()
@@ -99,9 +114,5 @@ if classify and user_input.strip():
                 "classi_suggerite": "; ".join([c.split(" (")[0] for c in class_options])
             }
 
-            st.session_state.feedback.append(feedback_data)
-            st.success("✅ Feedback inviato correttamente!")
-
-if st.session_state.feedback:
-    st.markdown("### 📄 Feedback della sessione")
-    st.dataframe(pd.DataFrame(st.session_state.feedback).tail(5))
+            save_feedback_to_google_sheet(feedback_data)
+            st.success("✅ Feedback inviato e salvato su Google Sheets!")
