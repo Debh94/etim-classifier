@@ -7,7 +7,7 @@
     import wikipedia
     from datetime import datetime
 
-    st.set_page_config(page_title="GianPietro", layout="centered")
+    st.set_page_config(page_title="🤖 GianPieTro", page_icon="🤖", layout="centered")
 
     @st.cache_resource
     def load_model():
@@ -37,10 +37,11 @@
     df_etim = load_etim_data()
     corpus_embeddings = embed_etim_classes(df_etim)
 
-    tab1, tab2 = st.tabs(["📥 Classificatore", "📚 Definizione (Wikipedia)"])
+    tab1, tab2 = st.tabs(["📥 Classificatore", "🤖 GianPieTro"])
 
     with tab1:
         st.title("📥 Classificatore ETIM gratuito")
+        st.markdown("Benvenuto! Sono **🤖 GianPieTro**, il tuo aiutante per trovare la giusta classe ETIM.")
         st.markdown("Inserisci una descrizione di prodotto per ricevere la **classe ETIM più adatta**.")
 
         user_input = st.text_area("✏️ Descrizione del prodotto:", height=150)
@@ -75,7 +76,7 @@
                         st.markdown("---")
 
     with tab2:
-        st.title("📚 Assistente gratuito (Wikipedia)")
+        st.title("🤖 GianPieTro – il tuo assistente gratuito")
         st.markdown("Scrivi il nome di un oggetto per ricevere una definizione automatica da Wikipedia.")
 
         with st.form("wiki_form"):
