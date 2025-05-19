@@ -7,7 +7,6 @@ st.set_page_config(page_title="Classificatore ETIM", layout="centered")
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
 from datetime import datetime
-import os
 
 @st.cache_resource
 def load_model():
@@ -15,22 +14,12 @@ def load_model():
 
 @st.cache_data
 def load_etim_data():
-    try:
-        df = pd.read_excel("Classi_9.xlsx", engine="openpyxl")
-    except FileNotFoundError:
-        st.error("❌ File 'Classi_9.xlsx' non trovato nella cartella dell'app.")
-        st.stop()
-
+    df = pd.read_excel("Classi_9.xlsx", engine="openpyxl")
     cols = [
         'Code', 'Description (EN)', 'ETIM IT',
         'Translation (ETIM CH)', 'Traduttore Google',
         'Traduzione_DEF', 'Sinonimi'
     ]
-    missing = [c for c in cols if c not in df.columns]
-    if missing:
-        st.error(f"❌ Mancano colonne nel file Excel: {missing}")
-        st.stop()
-
     df = df[cols].fillna('')
     df['combined_text'] = df.apply(
         lambda r: ' '.join([
@@ -41,102 +30,78 @@ def load_etim_data():
     )
     return df
 
-def load_feedback():
-    feedback_path = os.path.join(os.getcwd(), "feedback.csv")
-    if os.path.exists(feedback_path):
-        df_fb = pd.read_csv(feedback_path)
-        df_fb['combined_text'] = df_fb['descrizione_utente'].str.lower()
-        df_fb['Code'] = df_fb['classe_selezionata']
-        df_fb['ETIM IT'] = df_fb['etim_it']
-        for col in ['Description (EN)', 'Translation (ETIM CH)', 'Traduttore Google', 'Traduzione_DEF', 'Sinonimi']:
-            df_fb[col] = ''
-        return df_fb
-    return pd.DataFrame(columns=[
-        'combined_text', 'Code', 'ETIM IT', 'Description (EN)',
-        'Translation (ETIM CH)', 'Traduttore Google', 'Traduzione_DEF', 'Sinonimi'
-    ])
+# Inizializzazione session_state per i feedback
+if 'feedback' not in st.session_state:
+    st.session_state.feedback = []
 
-# Caricamento risorse
 model = load_model()
 df_etim = load_etim_data()
-df_feedback = load_feedback()
-
-df_combined = pd.concat([df_etim, df_feedback], ignore_index=True)
 
 @st.cache_data
 def embed_etim_classes(df):
     return model.encode(df['combined_text'].tolist(), convert_to_tensor=True)
 
-corpus_embeddings = embed_etim_classes(df_combined)
+corpus_embeddings = embed_etim_classes(df_etim)
 
-# Interfaccia utente
 st.title("🤖 Classificatore ETIM con AI")
 st.markdown("Inserisci una descrizione di prodotto per ricevere la **classe ETIM più adatta** con un sistema semantico intelligente.")
 
 user_input = st.text_area("📌 Descrizione del prodotto:", height=150)
+classify = st.button("Classifica")
 
-feedback_inviato = False
-
-if st.button("Classifica"):
+if classify and user_input.strip():
     query = user_input.strip().lower()
-    if not query:
-        st.warning("⚠️ Inserisci una descrizione prima di procedere.")
+    with st.spinner("🔍 Analisi semantica in corso..."):
+        query_embedding = model.encode(query, convert_to_tensor=True)
+        hits = util.semantic_search(query_embedding, corpus_embeddings, top_k=5)[0]
+
+        results = []
+        for hit in hits:
+            idx = hit['corpus_id']
+            score = round(float(hit['score']) * 100, 2)
+            row = df_etim.iloc[idx].copy()
+            row['Confidence'] = score
+            results.append(row)
+
+        results = pd.DataFrame(results)
+
+    if results.empty:
+        st.error("❌ Nessun suggerimento trovato.")
     else:
-        with st.spinner("🔍 Analisi semantica in corso..."):
-            query_embedding = model.encode(query, convert_to_tensor=True)
-            hits = util.semantic_search(query_embedding, corpus_embeddings, top_k=5)[0]
+        st.success("✅ Classi ETIM suggerite:")
+        for _, r in results.iterrows():
+            st.markdown(f"**{r['Code']}** – {r['ETIM IT']} (Confidenza: {r['Confidence']}%)")
+            st.markdown(f"🌍 Descrizione originale: {r['Description (EN)']}")
+            st.markdown(f"🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}")
+            st.markdown("---")
 
-            results = []
-            for hit in hits:
-                idx = hit['corpus_id']
-                score = round(float(hit['score']) * 100, 2)
-                row = df_combined.iloc[idx].copy()
-                row['Confidence'] = score
-                results.append(row)
+        st.subheader("📣 Seleziona la classe corretta tra quelle suggerite")
 
-            results = pd.DataFrame(results)
+        class_options = [
+            f"{r['Code']} – {r['ETIM IT']} (Confidenza: {r['Confidence']}%)"
+            for _, r in results.iterrows()
+        ]
+        selected = st.radio("🟢 Quale classe è corretta?", class_options, key="selected_class")
+        commento = st.text_area("✏️ Commenti aggiuntivi (opzionale):", key="comment_input")
+        invia_feedback = st.button("Invia feedback")
 
-        if results.empty:
-            st.error("❌ Nessun suggerimento trovato.")
-        else:
-            st.success("✅ Classi ETIM suggerite:")
-            for _, r in results.iterrows():
-                st.markdown(f"**{r['Code']}** – {r['ETIM IT']} (Confidenza: {r['Confidence']}%)")
-                st.markdown(f"🌍 Descrizione originale: {r['Description (EN)']}")
-                st.markdown(f"🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}")
-                st.markdown("---")
+        if invia_feedback:
+            idx = class_options.index(st.session_state.selected_class)
+            r = results.iloc[idx]
 
-            st.subheader("📣 Seleziona la classe corretta tra quelle suggerite")
+            feedback_data = {
+                "timestamp": datetime.now().isoformat(),
+                "descrizione_utente": user_input,
+                "classe_selezionata": r['Code'],
+                "etim_it": r['ETIM IT'],
+                "confidenza": r['Confidence'],
+                "commento": st.session_state.comment_input,
+                "classi_suggerite": "; ".join([c.split(" (")[0] for c in class_options])
+            }
 
-            class_options = [
-                f"{r['Code']} – {r['ETIM IT']} (Confidenza: {r['Confidence']}%)"
-                for _, r in results.iterrows()
-            ]
-            selected = st.radio("🟢 Quale classe è corretta?", class_options)
+            st.session_state.feedback.append(feedback_data)
+            st.success("✅ Feedback inviato correttamente!")
 
-            commento = st.text_area("✏️ Commenti aggiuntivi (opzionale):")
-
-            if st.button("Invia feedback"):
-                idx = class_options.index(selected)
-                r = results.iloc[idx]
-
-                feedback_data = {
-                    "timestamp": datetime.now().isoformat(),
-                    "descrizione_utente": user_input,
-                    "classe_selezionata": r['Code'],
-                    "etim_it": r['ETIM IT'],
-                    "confidenza": r['Confidence'],
-                    "commento": commento,
-                    "classi_suggerite": "; ".join([c.split(" (")[0] for c in class_options])
-                }
-
-                feedback_df = pd.DataFrame([feedback_data])
-                feedback_path = os.path.join(os.getcwd(), "feedback.csv")
-                if os.path.exists(feedback_path):
-                    feedback_df.to_csv(feedback_path, mode='a', header=False, index=False)
-                else:
-                    feedback_df.to_csv(feedback_path, index=False)
-
-                st.success("✅ Feedback inviato correttamente!")
-                st.markdown("### 📄 Ultimi feedback registrati")
-                st.dataframe(pd.read_csv(feedback_path).tail(5))
+if st.session_state.feedback:
+    st.markdown("### 📄 Feedback della sessione")
+    st.dataframe(pd.DataFrame(st.session_state.feedback).tail(5))
