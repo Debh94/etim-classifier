@@ -43,8 +43,9 @@ def load_etim_data():
 
 @st.cache_data
 def load_feedback():
-    if os.path.exists("feedback.csv"):
-        df_fb = pd.read_csv("feedback.csv")
+    feedback_path = os.path.join(os.path.dirname(__file__), "feedback.csv")
+    if os.path.exists(feedback_path):
+        df_fb = pd.read_csv(feedback_path)
         df_fb['combined_text'] = df_fb['descrizione_utente'].str.lower()
         df_fb['Code'] = df_fb['classe_selezionata']
         df_fb['ETIM IT'] = df_fb['etim_it']
@@ -121,10 +122,13 @@ if st.button("Classifica"):
                 }
 
                 feedback_df = pd.DataFrame([feedback_data])
-                feedback_path = "feedback.csv"
+                feedback_path = os.path.join(os.path.dirname(__file__), "feedback.csv")
                 if os.path.exists(feedback_path):
                     feedback_df.to_csv(feedback_path, mode='a', header=False, index=False)
                 else:
                     feedback_df.to_csv(feedback_path, index=False)
 
                 st.success("✅ Feedback inviato correttamente e salvato nel file!")
+
+                st.markdown("### 📄 Ultimi feedback registrati")
+                st.dataframe(pd.read_csv(feedback_path).tail(5))
