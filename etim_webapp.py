@@ -97,7 +97,7 @@ with tab2:
                     idx = hit['corpus_id']
                     r = df_etim.iloc[idx]
                     st.markdown(f"""**{r['Code']}** – {r['ETIM IT']}  
-🌍 *{r['Description (EN)')}*  
+🌍 *{r('Description (EN)')}*  
 🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}""")
                     st.markdown("---")
 
