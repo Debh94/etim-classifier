@@ -2,119 +2,102 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 import streamlit as st
-st.set_page_config(page_title="Classificatore ETIM", layout="centered")
-
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
 from datetime import datetime
-import json
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 
-# === GOOGLE SHEET SETUP (usando st.secrets) ===
-def save_feedback_to_google_sheet(feedback_row):
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds_dict = json.loads(st.secrets["GOOGLE_SERVICE_ACCOUNT"])
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    client = gspread.authorize(creds)
-    sheet = client.open_by_key("1PUJJKuMbbI4oyBtOTO6spDmstNeyLQXPMOAtdWK839U").sheet1
+# Setup pagina
+st.set_page_config(page_title="ETIM AI Assistant", layout="centered")
 
-    sheet.append_row([
-        feedback_row["timestamp"],
-        feedback_row["descrizione_utente"],
-        feedback_row["classe_selezionata"],
-        feedback_row["etim_it"],
-        feedback_row["confidenza"],
-        feedback_row["commento"],
-        feedback_row["classi_suggerite"]
-    ])
-
+# Caricamento modello
 @st.cache_resource
 def load_model():
     return SentenceTransformer('all-MiniLM-L6-v2')
 
+# Caricamento dati ETIM
 @st.cache_data
 def load_etim_data():
     df = pd.read_excel("Classi_9.xlsx", engine="openpyxl")
-    cols = [
-        'Code', 'Description (EN)', 'ETIM IT',
-        'Translation (ETIM CH)', 'Traduttore Google',
-        'Traduzione_DEF', 'Sinonimi'
-    ]
-    df = df[cols].fillna('')
+    df = df.fillna('')
     df['combined_text'] = df.apply(
-        lambda r: ' '.join([
-            r['Description (EN)'], r['ETIM IT'],
-            r['Translation (ETIM CH)'], r['Traduttore Google'],
-            r['Traduzione_DEF'], r['Sinonimi']
+        lambda row: ' '.join([
+            row['Description (EN)'],
+            row['ETIM IT'],
+            row['Translation (ETIM CH)'],
+            row['Traduttore Google'],
+            row['Traduzione_DEF'],
+            row['Sinonimi']
         ]).lower(), axis=1
     )
     return df
-
-model = load_model()
-df_etim = load_etim_data()
 
 @st.cache_data
 def embed_etim_classes(df):
     return model.encode(df['combined_text'].tolist(), convert_to_tensor=True)
 
+# Caricamento risorse
+model = load_model()
+df_etim = load_etim_data()
 corpus_embeddings = embed_etim_classes(df_etim)
 
-st.title("🤖 Classificatore ETIM con AI")
-st.markdown("Inserisci una descrizione di prodotto per ricevere la **classe ETIM più adatta** con un sistema semantico intelligente.")
+# Interfaccia a tab
+tab1, tab2 = st.tabs(["📥 Classificatore", "🧠 Assistente AI"])
 
-user_input = st.text_area("📌 Descrizione del prodotto:", height=150)
-classify = st.button("Classifica")
+with tab1:
+    st.title("📥 Classificatore ETIM")
+    st.markdown("Inserisci una descrizione di prodotto per ricevere la **classe ETIM più adatta**.")
 
-if classify and user_input.strip():
-    query = user_input.strip().lower()
-    with st.spinner("🔍 Analisi semantica in corso..."):
-        query_embedding = model.encode(query, convert_to_tensor=True)
-        hits = util.semantic_search(query_embedding, corpus_embeddings, top_k=5)[0]
+    user_input = st.text_area("✏️ Descrizione del prodotto:", height=150)
+    if st.button("Classifica"):
+        query = user_input.strip().lower()
+        if not query:
+            st.warning("⚠️ Inserisci una descrizione.")
+        else:
+            with st.spinner("🔍 Analisi semantica in corso..."):
+                query_embedding = model.encode(query, convert_to_tensor=True)
+                hits = util.semantic_search(query_embedding, corpus_embeddings, top_k=5)[0]
 
-        results = []
-        for hit in hits:
-            idx = hit['corpus_id']
-            score = round(float(hit['score']) * 100, 2)
-            row = df_etim.iloc[idx].copy()
-            row['Confidence'] = score
-            results.append(row)
+                results = []
+                for hit in hits:
+                    idx = hit['corpus_id']
+                    score = round(float(hit['score']) * 100, 2)
+                    row = df_etim.iloc[idx].copy()
+                    row['Confidence'] = score
+                    results.append(row)
 
-        results = pd.DataFrame(results)
+                results_df = pd.DataFrame(results)
 
-    if results.empty:
-        st.error("❌ Nessun suggerimento trovato.")
-    else:
-        st.success("✅ Classi ETIM suggerite:")
-        for _, r in results.iterrows():
-            st.markdown(f"**{r['Code']}** – {r['ETIM IT']} (Confidenza: {r['Confidence']}%)")
-            st.markdown(f"🌍 Descrizione originale: {r['Description (EN)']}")
-            st.markdown(f"🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}")
-            st.markdown("---")
+            if results_df.empty:
+                st.error("❌ Nessun suggerimento trovato.")
+            else:
+                st.success("✅ Classi ETIM suggerite:")
+                for _, r in results_df.iterrows():
+                    st.markdown(f"**{r['Code']}** – {r['ETIM IT']} (Confidenza: {r['Confidence']}%)")
+                    st.markdown(f"🌍 Descrizione originale: {r['Description (EN)']}")
+                    st.markdown(f"🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}")
+                    st.markdown("---")
 
-        st.subheader("📣 Seleziona la classe corretta tra quelle suggerite")
+with tab2:
+    st.title("🧠 Assistente AI")
+    st.markdown("Hai dubbi su un oggetto? Scrivi una parola chiave o descrizione e ti aiutiamo a capirlo.")
 
-        class_options = [
-            f"{r['Code']} – {r['ETIM IT']} (Confidenza: {r['Confidence']}%)"
-            for _, r in results.iterrows()
-        ]
-        selected = st.radio("🟢 Quale classe è corretta?", class_options, key="selected_class")
-        commento = st.text_area("✏️ Commenti aggiuntivi (opzionale):", key="comment_input")
-        invia_feedback = st.button("Invia feedback")
+    ai_query = st.text_input("🔍 Cerca una parola o descrizione:")
 
-        if invia_feedback:
-            idx = class_options.index(st.session_state.selected_class)
-            r = results.iloc[idx]
+    if ai_query.strip():
+        with st.spinner("🤖 Analisi e ricerca in corso..."):
+            query_embedding = model.encode(ai_query.strip().lower(), convert_to_tensor=True)
+            hits = util.semantic_search(query_embedding, corpus_embeddings, top_k=3)[0]
 
-            feedback_data = {
-                "timestamp": datetime.now().isoformat(),
-                "descrizione_utente": user_input,
-                "classe_selezionata": r['Code'],
-                "etim_it": r['ETIM IT'],
-                "confidenza": r['Confidence'],
-                "commento": st.session_state.comment_input,
-                "classi_suggerite": "; ".join([c.split(" (")[0] for c in class_options])
-            }
-
-            save_feedback_to_google_sheet(feedback_data)
-            st.success("✅ Feedback inviato e salvato su Google Sheets!")
+            if not hits:
+                st.warning("⚠️ Nessuna classe trovata.")
+            else:
+                st.subheader("📘 Risultati assistente AI")
+                for hit in hits:
+                    idx = hit['corpus_id']
+                    r = df_etim.iloc[idx]
+                    st.markdown(f"**{r['Code']}** – {r['ETIM IT']}  
+"
+                                f"🌍 *{r['Description (EN)']}*  
+"
+                                f"🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}")
+                    st.markdown("---")
