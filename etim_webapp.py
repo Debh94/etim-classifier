@@ -69,7 +69,7 @@ with tab1:
             else:
                 st.success("Classi ETIM suggerite:")
                 for _, r in results_df.iterrows():
-                    st.markdown(f"""**{r["Code"]}** – {r["ETIM IT"]}  
+                    st.markdown(f"""**{r["Code"]}** - {r["ETIM IT"]}  
 🌍 Descrizione EN: {r["Description (EN)"]}  
 🇮🇹 Traduzioni: {r["Translation (ETIM CH)"]}, {r["Traduttore Google"]}, {r["Traduzione_DEF"]}  
 📊 Confidenza: {r["Confidence"]}%""")
