@@ -40,7 +40,7 @@ corpus_embeddings = embed_etim_classes(df_etim)
 tab1, tab2 = st.tabs(["GianPieTro", "Assistente Wikipedia"])
 
 with tab1:
-    st.title("GianPieTro - Classificatore ETIM")
+    st.title("🤖 GianPieTro - Classificatore ETIM")
     st.markdown("Benvenuto! Sono GianPieTro, il tuo aiutante per trovare la giusta classe ETIM.")
     st.markdown("Inserisci una descrizione di prodotto per ricevere la classe ETIM più adatta.")
 
@@ -69,11 +69,10 @@ with tab1:
             else:
                 st.success("Classi ETIM suggerite:")
                 for _, r in results_df.iterrows():
-                    st.markdown(f"""**{r['Code']}** - {r['ETIM IT']}
-Descrizione EN: {r['Description (EN)']}
-Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}
-Confidenza: {r['Confidence']}%
-""")
+                    st.markdown(f"""**{r["Code"]}** – {r["ETIM IT"]}  
+🌍 Descrizione EN: {r["Description (EN)"]}  
+🇮🇹 Traduzioni: {r["Translation (ETIM CH)"]}, {r["Traduttore Google"]}, {r["Traduzione_DEF"]}  
+📊 Confidenza: {r["Confidence"]}%"""))
 
 with tab2:
     st.title("GianPieTro - il tuo assistente gratuito")
