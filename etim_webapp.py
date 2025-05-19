@@ -41,30 +41,27 @@ def load_etim_data():
     )
     return df
 
-@st.cache_data
 def load_feedback():
-    feedback_path = os.path.join(os.path.dirname(__file__), "feedback.csv")
+    feedback_path = os.path.join(os.getcwd(), "feedback.csv")
     if os.path.exists(feedback_path):
         df_fb = pd.read_csv(feedback_path)
         df_fb['combined_text'] = df_fb['descrizione_utente'].str.lower()
         df_fb['Code'] = df_fb['classe_selezionata']
         df_fb['ETIM IT'] = df_fb['etim_it']
-        return df_fb[['combined_text', 'Code', 'ETIM IT']]
-    return pd.DataFrame(columns=['combined_text', 'Code', 'ETIM IT'])
+        for col in ['Description (EN)', 'Translation (ETIM CH)', 'Traduttore Google', 'Traduzione_DEF', 'Sinonimi']:
+            df_fb[col] = ''
+        return df_fb
+    return pd.DataFrame(columns=[
+        'combined_text', 'Code', 'ETIM IT', 'Description (EN)',
+        'Translation (ETIM CH)', 'Traduttore Google', 'Traduzione_DEF', 'Sinonimi'
+    ])
 
 # Caricamento risorse
 model = load_model()
 df_etim = load_etim_data()
 df_feedback = load_feedback()
 
-etim_fields = ['combined_text', 'Code', 'ETIM IT', 'Description (EN)', 'Translation (ETIM CH)',
-               'Traduttore Google', 'Traduzione_DEF', 'Sinonimi']
-feedback_fields = ['combined_text', 'Code', 'ETIM IT']
-for col in etim_fields:
-    if col not in feedback_fields:
-        df_feedback[col] = ''
-
-df_combined = pd.concat([df_etim[etim_fields], df_feedback[etim_fields]], ignore_index=True)
+df_combined = pd.concat([df_etim, df_feedback], ignore_index=True)
 
 @st.cache_data
 def embed_etim_classes(df):
@@ -77,6 +74,8 @@ st.title("🤖 Classificatore ETIM con AI")
 st.markdown("Inserisci una descrizione di prodotto per ricevere la **classe ETIM più adatta** con un sistema semantico intelligente.")
 
 user_input = st.text_area("📌 Descrizione del prodotto:", height=150)
+
+feedback_inviato = False
 
 if st.button("Classifica"):
     query = user_input.strip().lower()
@@ -132,13 +131,12 @@ if st.button("Classifica"):
                 }
 
                 feedback_df = pd.DataFrame([feedback_data])
-                feedback_path = os.path.join(os.path.dirname(__file__), "feedback.csv")
+                feedback_path = os.path.join(os.getcwd(), "feedback.csv")
                 if os.path.exists(feedback_path):
                     feedback_df.to_csv(feedback_path, mode='a', header=False, index=False)
                 else:
                     feedback_df.to_csv(feedback_path, index=False)
 
-                st.success("✅ Feedback inviato correttamente e salvato nel file!")
-
+                st.success("✅ Feedback inviato correttamente!")
                 st.markdown("### 📄 Ultimi feedback registrati")
                 st.dataframe(pd.read_csv(feedback_path).tail(5))
