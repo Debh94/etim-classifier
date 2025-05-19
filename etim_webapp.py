@@ -6,15 +6,12 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer, util
 from datetime import datetime
 
-# Setup pagina
 st.set_page_config(page_title="ETIM AI Assistant", layout="centered")
 
-# Caricamento modello
 @st.cache_resource
 def load_model():
     return SentenceTransformer('all-MiniLM-L6-v2')
 
-# Caricamento dati ETIM
 @st.cache_data
 def load_etim_data():
     df = pd.read_excel("Classi_9.xlsx", engine="openpyxl")
@@ -35,12 +32,10 @@ def load_etim_data():
 def embed_etim_classes(df):
     return model.encode(df['combined_text'].tolist(), convert_to_tensor=True)
 
-# Caricamento risorse
 model = load_model()
 df_etim = load_etim_data()
 corpus_embeddings = embed_etim_classes(df_etim)
 
-# Interfaccia a tab
 tab1, tab2 = st.tabs(["📥 Classificatore", "🧠 Assistente AI"])
 
 with tab1:
@@ -72,9 +67,9 @@ with tab1:
             else:
                 st.success("✅ Classi ETIM suggerite:")
                 for _, r in results_df.iterrows():
-                    st.markdown(f"**{r['Code']}** – {r['ETIM IT']} (Confidenza: {r['Confidence']}%)")
-                    st.markdown(f"🌍 Descrizione originale: {r['Description (EN)']}")
-                    st.markdown(f"🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}")
+                    st.markdown(f"""**{r['Code']}** – {r['ETIM IT']}  
+🌍 *{r['Description (EN)']}*  
+🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}""")
                     st.markdown("---")
 
 with tab2:
@@ -95,9 +90,7 @@ with tab2:
                 for hit in hits:
                     idx = hit['corpus_id']
                     r = df_etim.iloc[idx]
-                    st.markdown(f"**{r['Code']}** – {r['ETIM IT']}  
-"
-                                f"🌍 *{r['Description (EN)']}*  
-"
-                                f"🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}")
+                    st.markdown(f"""**{r['Code']}** – {r['ETIM IT']}  
+🌍 *{r['Description (EN)']}*  
+🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}""")
                     st.markdown("---")
