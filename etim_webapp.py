@@ -56,7 +56,15 @@ def load_feedback():
 model = load_model()
 df_etim = load_etim_data()
 df_feedback = load_feedback()
-df_combined = pd.concat([df_etim[['combined_text', 'Code', 'ETIM IT']], df_feedback], ignore_index=True)
+
+etim_fields = ['combined_text', 'Code', 'ETIM IT', 'Description (EN)', 'Translation (ETIM CH)',
+               'Traduttore Google', 'Traduzione_DEF', 'Sinonimi']
+feedback_fields = ['combined_text', 'Code', 'ETIM IT']
+for col in etim_fields:
+    if col not in feedback_fields:
+        df_feedback[col] = ''
+
+df_combined = pd.concat([df_etim[etim_fields], df_feedback[etim_fields]], ignore_index=True)
 
 @st.cache_data
 def embed_etim_classes(df):
@@ -95,6 +103,8 @@ if st.button("Classifica"):
             st.success("✅ Classi ETIM suggerite:")
             for _, r in results.iterrows():
                 st.markdown(f"**{r['Code']}** – {r['ETIM IT']} (Confidenza: {r['Confidence']}%)")
+                st.markdown(f"🌍 Descrizione originale: {r['Description (EN)']}")
+                st.markdown(f"🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}")
                 st.markdown("---")
 
             st.subheader("📣 Seleziona la classe corretta tra quelle suggerite")
