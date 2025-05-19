@@ -37,10 +37,10 @@ model = load_model()
 df_etim = load_etim_data()
 corpus_embeddings = embed_etim_classes(df_etim)
 
-tab1, tab2 = st.tabs(["Classificatore", "GianPieTro"])
+tab1, tab2 = st.tabs(["GianPieTro", "Assistente Wikipedia"])
 
 with tab1:
-    st.title("Classificatore ETIM gratuito")
+    st.title("GianPieTro - Classificatore ETIM")
     st.markdown("Benvenuto! Sono GianPieTro, il tuo aiutante per trovare la giusta classe ETIM.")
     st.markdown("Inserisci una descrizione di prodotto per ricevere la classe ETIM più adatta.")
 
