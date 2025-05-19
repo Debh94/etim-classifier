@@ -72,7 +72,7 @@ with tab1:
                     st.markdown(f"""**{r["Code"]}** – {r["ETIM IT"]}  
 🌍 Descrizione EN: {r["Description (EN)"]}  
 🇮🇹 Traduzioni: {r["Translation (ETIM CH)"]}, {r["Traduttore Google"]}, {r["Traduzione_DEF"]}  
-📊 Confidenza: {r["Confidence"]}%"""))
+📊 Confidenza: {r["Confidence"]}%""")
 
 with tab2:
     st.title("GianPieTro - il tuo assistente gratuito")
