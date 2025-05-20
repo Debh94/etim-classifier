@@ -1,5 +1,6 @@
 
 import streamlit as st
+st.set_page_config(page_title='GianPieTro', layout='centered')
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
 import wikipedia
@@ -36,7 +37,6 @@ model = load_model()
 df_etim = load_etim_data()
 corpus_embeddings = embed_etim_classes(df_etim)
 
-st.set_page_config(page_title="GianPieTro", layout="centered")
 tab1, tab2 = st.tabs(["GianPieTro", "Assistente Wikipedia"])
 
 with tab1:
