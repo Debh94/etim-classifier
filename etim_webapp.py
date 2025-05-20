@@ -33,6 +33,14 @@ def load_etim_data():
 def embed_etim_classes(df):
     return model.encode(df['combined_text'].tolist(), convert_to_tensor=True)
 
+
+def normalize(text):
+    import re
+    text = text.lower().strip()
+    text = re.sub(r'\s+', ' ', text)  # rimuove spazi multipli
+    text = text.replace("’", "'").replace("`", "'")
+    return text
+
 model = load_model()
 df_etim = load_etim_data()
 corpus_embeddings = embed_etim_classes(df_etim)
