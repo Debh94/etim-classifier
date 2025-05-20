@@ -49,16 +49,20 @@ with tab1:
 
     if st.button("Classifica"):
         query = normalize(user_input)
-        st.write("🔍 Query normalizzata:", query)
 
+        # 1. Verifica se è un sinonimo conosciuto
         if query in synonym_to_class:
-            st.success("✅ Trovato tramite sinonimo:")
-            for cl in set(synonym_to_class[query]):
+            st.success("✅ Trovato tramite sinonimo (synonym_to_class):")
+            for cl in sorted(set(synonym_to_class[query])):
                 st.markdown(f"**Classe ETIM:** {cl}")
+
+        # 2. Verifica se è un value noto nel dizionario ufficiale ETIM
         elif query in fallback_mapping:
             st.success("✅ Trovato tramite dizionario ETIM (value):")
             for entry in fallback_mapping[query]:
                 st.markdown(f"**{entry['class']}** (Feature: {entry['feature']})")
+
+        # 3. Altrimenti usa l'AI semantica
         else:
             with st.spinner("🔍 Analisi semantica in corso..."):
                 query_embedding = model.encode(query, convert_to_tensor=True)
