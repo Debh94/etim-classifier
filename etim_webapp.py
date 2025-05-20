@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
@@ -10,32 +9,33 @@ from fallback_value_to_class import fallback_mapping
 
 st.set_page_config(page_title="GianPieTro", layout="centered")
 
-def normalize(text):
-    return text.strip().lower().replace("’", "'").replace("`", "'")
-
 @st.cache_resource
 def load_model():
-    return SentenceTransformer('all-MiniLM-L6-v2')
+    return SentenceTransformer("all-MiniLM-L6-v2")
 
 @st.cache_data
 def load_etim_data():
     df = pd.read_excel("Classi_9.xlsx", engine="openpyxl")
-    df = df.fillna('')
-    df['combined_text'] = df.apply(
-        lambda row: ' '.join([
-            row['Description (EN)'],
-            row['ETIM IT'],
-            row['Translation (ETIM CH)'],
-            row['Traduttore Google'],
-            row['Traduzione_DEF'],
-            row['Sinonimi']
-        ]).lower(), axis=1
+    df = df.fillna("")
+    df["combined_text"] = df.apply(
+        lambda row: " ".join([
+            row["Description (EN)"],
+            row["ETIM IT"],
+            row["Translation (ETIM CH)"],
+            row["Traduttore Google"],
+            row["Traduzione_DEF"],
+            row["Sinonimi"]
+        ]).lower(),
+        axis=1
     )
     return df
 
 @st.cache_data
 def embed_etim_classes(df):
-    return model.encode(df['combined_text'].tolist(), convert_to_tensor=True)
+    return model.encode(df["combined_text"].tolist(), convert_to_tensor=True)
+
+def normalize(txt):
+    return txt.strip().lower()
 
 model = load_model()
 df_etim = load_etim_data()
@@ -44,67 +44,66 @@ corpus_embeddings = embed_etim_classes(df_etim)
 tab1, tab2 = st.tabs(["GianPieTro", "Assistente Wikipedia"])
 
 with tab1:
-    st.title("GianPieTro - Classificatore ETIM")
-    user_input = st.text_area("Descrizione del prodotto:", height=150)
+    st.title("🤖 GianPieTro - Classificatore ETIM")
+    user_input = st.text_area("📌 Descrizione del prodotto:", height=150)
 
     if st.button("Classifica"):
         query = normalize(user_input)
 
-        # 1. Verifica se è un sinonimo conosciuto
+        # 1. Match nei sinonimi
         if query in synonym_to_class:
-            st.success("✅ Trovato tramite sinonimo (synonym_to_class):")
+            st.success("✅ Trovato nei sinonimi:")
             for cl in sorted(set(synonym_to_class[query])):
-                st.markdown(f"**Classe ETIM:** {cl}")
+                st.markdown(f"- Classe ETIM: **{cl}**")
 
-        # 2. Verifica se è un value noto nel dizionario ufficiale ETIM
+        # 2. Match nel fallback (da testo → classi)
         elif query in fallback_mapping:
-            st.success("✅ Trovato tramite dizionario ETIM (value):")
-            for entry in fallback_mapping[query]:
-                st.markdown(f"**{entry['class']}** (Feature: {entry['feature']})")
+            st.success("✅ Trovato nel fallback ETIM (value):")
+            for cl in sorted(set(fallback_mapping[query])):
+                st.markdown(f"- Classe ETIM: **{cl}**")
 
-        # 3. Altrimenti usa l'AI semantica
+        # 3. Analisi semantica
         else:
-            with st.spinner("🔍 Analisi semantica in corso..."):
-                query_embedding = model.encode(query, convert_to_tensor=True)
-                hits = util.semantic_search(query_embedding, corpus_embeddings, top_k=5)[0]
+            st.info("🧠 Nessun match diretto. Cerco con AI...")
+            query_embedding = model.encode(query, convert_to_tensor=True)
+            hits = util.semantic_search(query_embedding, corpus_embeddings, top_k=5)[0]
 
-                results = []
-                for hit in hits:
-                    idx = hit['corpus_id']
-                    score = round(float(hit['score']) * 100, 2)
-                    row = df_etim.iloc[idx].copy()
-                    row['Confidence'] = score
-                    results.append(row)
+            results = []
+            for hit in hits:
+                idx = hit["corpus_id"]
+                score = round(float(hit["score"]) * 100, 2)
+                row = df_etim.iloc[idx].copy()
+                row["Confidence"] = score
+                results.append(row)
 
-                results_df = pd.DataFrame(results)
+            results_df = pd.DataFrame(results)
 
             if results_df.empty:
-                st.error("❌ Nessun suggerimento trovato.")
+                st.error("❌ Nessun risultato trovato.")
             else:
-                st.success("✅ Classi ETIM suggerite:")
+                st.success("✅ Risultati AI:")
                 for _, r in results_df.iterrows():
-                    st.markdown(f"""**{r['Code']}** - {r['ETIM IT']}
-📘 Descrizione EN: {r['Description (EN)']}
+                    st.markdown(f"""**{r['Code']}** – {r['ETIM IT']}
+📘 EN: {r['Description (EN)']}
 🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}
-📊 Confidenza: {r['Confidence']}%""")
-                    st.markdown("---")
+📊 Confidenza: {r['Confidence']}%
+---""")
 
 with tab2:
-    st.title("Assistente Wikipedia")
+    st.title("📚 Assistente Wikipedia")
     with st.form("wiki_form"):
-        term = st.text_input("Oggetto da cercare:", key="term_wiki")
-        cerca = st.form_submit_button("Cerca definizione")
+        term = st.text_input("Cerca un oggetto:", key="term_wiki")
+        btn = st.form_submit_button("Cerca definizione")
 
-    if cerca and term.strip():
+    if btn and term.strip():
         try:
             wikipedia.set_lang("it")
-            summary = wikipedia.summary(term.strip(), sentences=3, auto_suggest=True, redirect=True)
-            st.success("✅ Ecco cosa ho trovato:")
+            summary = wikipedia.summary(term.strip(), sentences=3)
+            st.success("✅ Definizione trovata:")
             st.markdown(summary)
         except wikipedia.exceptions.DisambiguationError as e:
-            st.warning("⚠️ Termine ambiguo. Prova a essere più preciso. Esempi:")
-            st.markdown(", ".join(e.options[:5]))
+            st.warning("⚠️ Termine ambiguo. Esempi: " + ", ".join(e.options[:5]))
         except wikipedia.exceptions.PageError:
             st.error("❌ Nessuna definizione trovata.")
-        except Exception as ex:
-            st.error(f"Errore durante la ricerca: {ex}")
+        except Exception as e:
+            st.error(f"Errore: {e}")
