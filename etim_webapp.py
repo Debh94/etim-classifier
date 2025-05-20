@@ -1,6 +1,7 @@
 
 import streamlit as st
-st.set_page_config(page_title='GianPieTro', layout='centered')
+st.set_page_config(page_title="GianPieTro", layout="centered")
+
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
 import wikipedia
@@ -8,6 +9,13 @@ from datetime import datetime
 
 from fallback_value_to_class import fallback_mapping
 from synonym_to_class import synonym_mapping
+
+def normalize(text):
+    import re
+    text = text.lower().strip()
+    text = re.sub(r'\s+', ' ', text)
+    text = text.replace("’", "'").replace("`", "'")
+    return text
 
 @st.cache_resource
 def load_model():
@@ -33,14 +41,6 @@ def load_etim_data():
 def embed_etim_classes(df):
     return model.encode(df['combined_text'].tolist(), convert_to_tensor=True)
 
-
-def normalize(text):
-    import re
-    text = text.lower().strip()
-    text = re.sub(r'\s+', ' ', text)  # rimuove spazi multipli
-    text = text.replace("’", "'").replace("`", "'")
-    return text
-
 model = load_model()
 df_etim = load_etim_data()
 corpus_embeddings = embed_etim_classes(df_etim)
@@ -52,36 +52,37 @@ with tab1:
     user_input = st.text_area("Descrizione del prodotto:", height=150)
 
     if st.button("Classifica"):
-        query = user_input.lower().strip()
+        query = normalize(user_input)
 
         if query in fallback_mapping:
             suggerite = fallback_mapping[query]
-            st.info("Trovato tramite value ETIM:")
+            st.info("✅ Trovato tramite value ETIM (dizionario ufficiale):")
             for item in suggerite:
                 st.markdown(f"**{item['class']}** (Feature: {item['feature']})")
         elif query in synonym_mapping:
             suggerite = synonym_mapping[query]
-            st.info("Trovato come sinonimo ETIM:")
+            st.info("✅ Trovato come sinonimo ETIM:")
             for item in suggerite:
                 st.markdown(f"**{item['class']}** - {item['label']}")
         else:
-            query_embedding = model.encode(query, convert_to_tensor=True)
-            hits = util.semantic_search(query_embedding, corpus_embeddings, top_k=5)[0]
+            with st.spinner("🔍 Analisi semantica in corso..."):
+                query_embedding = model.encode(query, convert_to_tensor=True)
+                hits = util.semantic_search(query_embedding, corpus_embeddings, top_k=5)[0]
 
-            results = []
-            for hit in hits:
-                idx = hit['corpus_id']
-                score = round(float(hit['score']) * 100, 2)
-                row = df_etim.iloc[idx].copy()
-                row['Confidence'] = score
-                results.append(row)
+                results = []
+                for hit in hits:
+                    idx = hit['corpus_id']
+                    score = round(float(hit['score']) * 100, 2)
+                    row = df_etim.iloc[idx].copy()
+                    row['Confidence'] = score
+                    results.append(row)
 
-            results_df = pd.DataFrame(results)
+                results_df = pd.DataFrame(results)
 
             if results_df.empty:
-                st.error("Nessun suggerimento trovato.")
+                st.error("❌ Nessun suggerimento trovato.")
             else:
-                st.success("Classi ETIM suggerite:")
+                st.success("✅ Classi ETIM suggerite:")
                 for _, r in results_df.iterrows():
                     st.markdown(f"""**{r['Code']}** - {r['ETIM IT']}
 Descrizione EN: {r['Description (EN)']}
