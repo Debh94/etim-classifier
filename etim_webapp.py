@@ -1,21 +1,15 @@
 
 import streamlit as st
-st.set_page_config(page_title="GianPieTro", layout="centered")
-
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
-import wikipedia
 from datetime import datetime
-
+import wikipedia
 from fallback_value_to_class import fallback_mapping
-from synonym_to_class import synonym_mapping
+
+st.set_page_config(page_title="GianPieTro", layout="centered")
 
 def normalize(text):
-    import re
-    text = text.lower().strip()
-    text = re.sub(r'\s+', ' ', text)
-    text = text.replace("’", "'").replace("`", "'")
-    return text
+    return text.strip().lower().replace("’", "'").replace("`", "'")
 
 @st.cache_resource
 def load_model():
@@ -55,15 +49,9 @@ with tab1:
         query = normalize(user_input)
 
         if query in fallback_mapping:
-            suggerite = fallback_mapping[query]
-            st.info("✅ Trovato tramite value ETIM (dizionario ufficiale):")
-            for item in suggerite:
-                st.markdown(f"**{item['class']}** (Feature: {item['feature']})")
-        elif query in synonym_mapping:
-            suggerite = synonym_mapping[query]
-            st.info("✅ Trovato come sinonimo ETIM:")
-            for item in suggerite:
-                st.markdown(f"**{item['class']}** - {item['label']}")
+            st.success("✅ Trovato tramite dizionario ETIM (value):")
+            for entry in fallback_mapping[query]:
+                st.markdown(f"**{entry['class']}** (Feature: {entry['feature']})")
         else:
             with st.spinner("🔍 Analisi semantica in corso..."):
                 query_embedding = model.encode(query, convert_to_tensor=True)
@@ -85,9 +73,9 @@ with tab1:
                 st.success("✅ Classi ETIM suggerite:")
                 for _, r in results_df.iterrows():
                     st.markdown(f"""**{r['Code']}** - {r['ETIM IT']}
-Descrizione EN: {r['Description (EN)']}
-Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}
-Confidenza: {r['Confidence']}%""")
+📘 Descrizione EN: {r['Description (EN)']}
+🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}
+📊 Confidenza: {r['Confidence']}%""")
                     st.markdown("---")
 
 with tab2:
@@ -100,12 +88,12 @@ with tab2:
         try:
             wikipedia.set_lang("it")
             summary = wikipedia.summary(term.strip(), sentences=3, auto_suggest=True, redirect=True)
-            st.success("Ecco cosa ho trovato:")
+            st.success("✅ Ecco cosa ho trovato:")
             st.markdown(summary)
         except wikipedia.exceptions.DisambiguationError as e:
-            st.warning("Termine ambiguo. Esempi:")
+            st.warning("⚠️ Termine ambiguo. Prova a essere più preciso. Esempi:")
             st.markdown(", ".join(e.options[:5]))
         except wikipedia.exceptions.PageError:
-            st.error("Nessuna definizione trovata.")
+            st.error("❌ Nessuna definizione trovata.")
         except Exception as ex:
             st.error(f"Errore durante la ricerca: {ex}")
