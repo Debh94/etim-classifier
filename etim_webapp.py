@@ -48,6 +48,8 @@ with tab1:
 
     if st.button("Classifica"):
         query = normalize(user_input)
+        st.write("🔍 Query normalizzata:", query)
+        st.write("📌 Presente nel dizionario fallback?", query in fallback_mapping)
 
         if query in fallback_mapping:
             st.success("✅ Trovato tramite dizionario ETIM (value):")
