@@ -4,6 +4,7 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer, util
 from datetime import datetime
 import wikipedia
+import torch
 from fallback_value_to_class import fallback_mapping
 
 st.set_page_config(page_title="GianPieTro", layout="centered")
