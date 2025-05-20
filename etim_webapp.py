@@ -5,6 +5,7 @@ from sentence_transformers import SentenceTransformer, util
 from datetime import datetime
 import wikipedia
 import torch
+from synonym_to_class import synonym_to_class
 from fallback_value_to_class import fallback_mapping
 
 st.set_page_config(page_title="GianPieTro", layout="centered")
@@ -49,9 +50,12 @@ with tab1:
     if st.button("Classifica"):
         query = normalize(user_input)
         st.write("🔍 Query normalizzata:", query)
-        st.write("📌 Presente nel dizionario fallback?", query in fallback_mapping)
 
-        if query in fallback_mapping:
+        if query in synonym_to_class:
+            st.success("✅ Trovato tramite sinonimo:")
+            for cl in set(synonym_to_class[query]):
+                st.markdown(f"**Classe ETIM:** {cl}")
+        elif query in fallback_mapping:
             st.success("✅ Trovato tramite dizionario ETIM (value):")
             for entry in fallback_mapping[query]:
                 st.markdown(f"**{entry['class']}** (Feature: {entry['feature']})")
