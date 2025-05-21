@@ -1,14 +1,15 @@
 import streamlit as st
 import pandas as pd
+import sqlite3
 from sentence_transformers import SentenceTransformer, util
 from datetime import datetime
 import wikipedia
 import torch
 
-# Impostazioni pagina - deve essere il primo comando
+# Impostazioni pagina
 st.set_page_config(page_title="GianPieTro", layout="centered")
 
-# Applica lo stile grafico migliorato
+# Applica stile compatto
 st.markdown("""
     <style>
         .stTextInput > div > div > input {
@@ -27,40 +28,27 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Importa i dizionari aggiornati
-from synonym_to_class import synonym_to_class
-from fallback_value_to_class import fallback_mapping
-
 @st.cache_resource
 def load_model():
     return SentenceTransformer("all-MiniLM-L6-v2")
 
 @st.cache_data
-def load_etim_data():
-    df = pd.read_excel("Classi_9.xlsx", engine="openpyxl")
-    df = df.fillna("")
-    df["combined_text"] = df.apply(
-        lambda row: " ".join([
-            row["Description (EN)"],
-            row["ETIM IT"],
-            row["Translation (ETIM CH)"],
-            row["Traduttore Google"],
-            row["Traduzione_DEF"],
-            row["Sinonimi"]
-        ]).lower(),
-        axis=1
-    )
-    return df
+def load_database():
+    conn = sqlite3.connect("etim_classifier.db")
+    class_df = pd.read_sql_query("SELECT * FROM class", conn)
+    synonym_df = pd.read_sql_query("SELECT * FROM synonym_map", conn)
+    conn.close()
+    return class_df, synonym_df
 
 @st.cache_data
 def embed_etim_classes(df):
-    return model.encode(df["combined_text"].tolist(), convert_to_tensor=True)
+    return model.encode(df["ARTCLASSDESC"].str.lower().tolist(), convert_to_tensor=True)
 
 def normalize(txt):
     return txt.strip().lower()
 
 model = load_model()
-df_etim = load_etim_data()
+df_etim, df_synonyms = load_database()
 corpus_embeddings = embed_etim_classes(df_etim)
 
 tab1, tab2 = st.tabs(["GianPieTro", "Assistente Wikipedia"])
@@ -72,16 +60,13 @@ with tab1:
     if st.button("Classifica"):
         query = normalize(user_input)
 
-        if query in synonym_to_class:
+        matched_classes = df_synonyms[df_synonyms['CLASSSYNONYM'].str.lower() == query]['ARTCLASSID'].unique()
+
+        if len(matched_classes) > 0:
             st.success("✅ Trovato nei sinonimi:")
-            for cl in sorted(set(synonym_to_class[query])):
-                st.markdown(f"- Classe ETIM: **{cl}**")
-
-        elif query in fallback_mapping:
-            st.success("✅ Trovato nel fallback ETIM (value):")
-            for cl in sorted(set(fallback_mapping[query])):
-                st.markdown(f"- Classe ETIM: **{cl}**")
-
+            for cl in sorted(matched_classes):
+                desc = df_etim[df_etim['ARTCLASSID'] == cl]['ARTCLASSDESC'].values[0]
+                st.markdown(f"- **{cl}** – {desc}")
         else:
             st.info("🧠 Nessun match diretto. Cerco con AI...")
             query_embedding = model.encode(query, convert_to_tensor=True)
@@ -102,9 +87,7 @@ with tab1:
             else:
                 st.success("✅ Risultati AI:")
                 for _, r in results_df.iterrows():
-                    st.markdown(f"""**{r['Code']}** – {r['ETIM IT']}
-📘 EN: {r['Description (EN)']}
-🇮🇹 Traduzioni: {r['Translation (ETIM CH)']}, {r['Traduttore Google']}, {r['Traduzione_DEF']}
+                    st.markdown(f"""**{r['ARTCLASSID']}** – {r['ARTCLASSDESC']}
 📊 Confidenza: {r['Confidence']}%
 ---""")
 
