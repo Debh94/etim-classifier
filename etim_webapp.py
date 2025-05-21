@@ -4,8 +4,29 @@ from sentence_transformers import SentenceTransformer, util
 from datetime import datetime
 import wikipedia
 import torch
+
+# Importa i dizionari aggiornati
 from synonym_to_class import synonym_to_class
 from fallback_value_to_class import fallback_mapping
+
+# Applica lo stile grafico migliorato
+st.markdown("""
+    <style>
+        .stTextInput > div > div > input {
+            font-size: 14px;
+        }
+        .stTextArea > div > div > textarea {
+            font-size: 14px;
+        }
+        .stButton > button {
+            font-size: 14px;
+            padding: 0.4em 1em;
+        }
+        h1, h2, h3 {
+            font-size: 22px !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 st.set_page_config(page_title="GianPieTro", layout="centered")
 
@@ -50,19 +71,16 @@ with tab1:
     if st.button("Classifica"):
         query = normalize(user_input)
 
-        # 1. Match nei sinonimi
         if query in synonym_to_class:
             st.success("✅ Trovato nei sinonimi:")
             for cl in sorted(set(synonym_to_class[query])):
                 st.markdown(f"- Classe ETIM: **{cl}**")
 
-        # 2. Match nel fallback (da testo → classi)
         elif query in fallback_mapping:
             st.success("✅ Trovato nel fallback ETIM (value):")
             for cl in sorted(set(fallback_mapping[query])):
                 st.markdown(f"- Classe ETIM: **{cl}**")
 
-        # 3. Analisi semantica
         else:
             st.info("🧠 Nessun match diretto. Cerco con AI...")
             query_embedding = model.encode(query, convert_to_tensor=True)
