@@ -66,6 +66,10 @@ with tab1:
         # Cerca corrispondenze dirette come VALUE
         matched_values = df_values[df_values['VALUEDESC'].str.lower() == query]
 
+        # Se non trovato, prova a cercare anche nella traduzione inglese
+        if matched_values.empty and 'TRANSLATION' in df_values.columns:
+            matched_values = df_values[df_values['TRANSLATION'].str.lower() == query]
+
         # Se non troviamo una corrispondenza in italiano, proviamo a cercare nella colonna inglese
         if matched_values.empty and 'TRANSLATION' in df_values.columns:
             matched_values = df_values[df_values['TRANSLATION'].str.lower() == query]
