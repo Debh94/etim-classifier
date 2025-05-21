@@ -60,7 +60,51 @@ with tab1:
     st.title("🤖 GianPieTro - Classificatore ETIM")
     user_input = st.text_area("📌 Descrizione del prodotto:", height=150)
 
-    if st.button("Classifica"):
+    # Nuova funzione intelligente
+    if st.button("🧠 Suggerisci Classe + Feature + Value"):
+        query = normalize(user_input)
+
+        # 1. Identificazione della classe tramite value o sinonimo
+        matched_values = df_values[df_values['VALUEDESC'].str.lower() == query]
+        if matched_values.empty and 'TRANSLATION' in df_values.columns:
+            matched_values = df_values[df_values['TRANSLATION'].str.lower() == query]
+
+        if not matched_values.empty:
+            value_id = matched_values.iloc[0]['VALUEID']
+            cfv_matches = df_cfv[df_cfv['VALUEID'] == value_id]
+            artclass_ids = df_cff[df_cff['ARTCLASSFEATURENR'].isin(cfv_matches['ARTCLASSFEATURENR'])]['ARTCLASSID'].unique()
+        else:
+            matched_synonyms = df_synonyms[df_synonyms['CLASSSYNONYM'].str.lower().str.contains(query)]
+            artclass_ids = matched_synonyms['ARTCLASSID'].unique()
+
+        if len(artclass_ids) == 0:
+            st.warning("Nessuna classe trovata dal testo fornito.")
+        else:
+            best_class = artclass_ids[0]  # prendiamo la prima classe per iniziare
+            class_desc = df_etim[df_etim['ARTCLASSID'] == best_class]["ARTCLASSDESC_IT"].values[0]
+            st.markdown(f"### 📦 Classe suggerita: **{best_class} – {class_desc}**")
+
+            # 2. Recupera tutte le feature della classe
+            class_feat_map = df_cff[df_cff['ARTCLASSID'] == best_class]
+            feat_ids = class_feat_map['FEATUREID'].unique()
+            st.markdown(f"### 🔧 Feature collegate alla classe:")
+            for fid in feat_ids:
+                feat_row = df_feature[df_feature['FEATUREID'] == fid]
+                if not feat_row.empty:
+                    feat_name = feat_row["FEATUREDESC_IT"].values[0]
+                    # 3. Trova i possibili value semantici associabili
+                    match_vals = df_cfv[
+                        (df_cfv['ARTCLASSID'] == best_class) & (df_cfv['FEATUREID'] == fid)
+                    ]["VALUEID"].unique()
+
+                    val_df = df_values[df_values['VALUEID'].isin(match_vals)]
+                    val_match = val_df[val_df['VALUEDESC'].str.lower().isin(query.split()) |
+                                       val_df['TRANSLATION'].str.lower().isin(query.split())]
+                    if not val_match.empty:
+                        value_name = val_match.iloc[0]['VALUEDESC']
+                        st.markdown(f"- **{fid}** – {feat_name}: `{value_name}`")
+                    else:
+                        st.markdown(f"- **{fid}** – {feat_name}: _[nessun match diretto]_")
         query = normalize(user_input)
 
         # Cerca corrispondenze dirette come VALUE
