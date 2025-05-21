@@ -66,7 +66,12 @@ with tab1:
         # Cerca corrispondenze dirette come VALUE
         matched_values = df_values[df_values['VALUEDESC'].str.lower() == query]
 
-        # Se non trovato, prova a cercare anche nella traduzione inglese
+        # Se non trovato, prova a cercare anche se la TRANSLATION corrisponde (cioè l'input era in italiano ma la traduzione porta all'inglese)
+        if matched_values.empty and 'TRANSLATION' in df_values.columns:
+            translated = df_values[df_values['TRANSLATION'].str.lower() == query]
+            if not translated.empty:
+                # Ora usa la VALUEID per ottenere le classi collegate
+                matched_values = translated
         if matched_values.empty and 'TRANSLATION' in df_values.columns:
             matched_values = df_values[df_values['TRANSLATION'].str.lower() == query]
 
