@@ -66,10 +66,16 @@ with tab1:
         # Cerca corrispondenze dirette come VALUE
         matched_values = df_values[df_values['VALUEDESC'].str.lower() == query]
 
+        # Se non troviamo una corrispondenza in italiano, proviamo a cercare nella colonna inglese
+        if matched_values.empty and 'TRANSLATION' in df_values.columns:
+            matched_values = df_values[df_values['TRANSLATION'].str.lower() == query]
+
         if not matched_values.empty:
             st.success("🎯 Trovato come VALUE ETIM:")
             value_id = matched_values.iloc[0]['VALUEID']
-            st.markdown(f"- **{value_id}** – {matched_values.iloc[0]['VALUEDESC']}")
+            italian_translation = matched_values.iloc[0].get('VALUEDESC', '')
+            english_desc = matched_values.iloc[0].get('TRANSLATION', '')
+            st.markdown(f"- **{value_id}** – {italian_translation} 🇮🇹 / {english_desc} 🇬🇧")
 
             # Trova tutte le classi collegate a questo VALUE
             cfv_matches = df_cfv[df_cfv['VALUEID'] == value_id]
