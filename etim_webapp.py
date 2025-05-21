@@ -5,9 +5,8 @@ from datetime import datetime
 import wikipedia
 import torch
 
-# Importa i dizionari aggiornati
-from synonym_to_class import synonym_to_class
-from fallback_value_to_class import fallback_mapping
+# Impostazioni pagina - deve essere il primo comando
+st.set_page_config(page_title="GianPieTro", layout="centered")
 
 # Applica lo stile grafico migliorato
 st.markdown("""
@@ -28,7 +27,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.set_page_config(page_title="GianPieTro", layout="centered")
+# Importa i dizionari aggiornati
+from synonym_to_class import synonym_to_class
+from fallback_value_to_class import fallback_mapping
 
 @st.cache_resource
 def load_model():
