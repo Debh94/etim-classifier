@@ -60,7 +60,7 @@ with tab1:
     if st.button("Classifica"):
         query = normalize(user_input)
 
-        matched_classes = df_synonyms[df_synonyms['CLASSSYNONYM'].str.lower() == query]['ARTCLASSID'].unique()
+        matched_classes = df_synonyms[df_synonyms['CLASSSYNONYM'].str.lower().str.contains(query)]['ARTCLASSID'].unique()
 
         if len(matched_classes) > 0:
             st.success("✅ Trovato nei sinonimi:")
